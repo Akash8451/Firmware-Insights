@@ -16,6 +16,7 @@ type UploadedFile = {
 };
 
 const acceptedFileTypes = [".bin", ".txt"];
+const MAX_BIN_FILE_SIZE_BYTES = 4 * 1024 * 1024; // 4MB
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
@@ -44,14 +45,11 @@ const fileToArrayBuffer = (file: File): Promise<ArrayBuffer> => {
   });
 }
 
-const extractStrings = (buffer: ArrayBuffer, minLength = 4, maxLength = 250000): string => {
+const extractStrings = (buffer: ArrayBuffer, minLength = 4): string => {
   const view = new Uint8Array(buffer);
   let result = '';
   let currentString = '';
   for (let i = 0; i < view.length; i++) {
-      if (result.length >= maxLength) {
-        break;
-      }
       const charCode = view[i];
       // Printable ASCII characters (32-126) plus newline, tab, and carriage return
       if ((charCode >= 32 && charCode <= 126) || charCode === 10 || charCode === 9 || charCode === 13) {
@@ -63,10 +61,10 @@ const extractStrings = (buffer: ArrayBuffer, minLength = 4, maxLength = 250000):
           currentString = '';
       }
   }
-  if (currentString.length >= minLength && result.length < maxLength) {
+  if (currentString.length >= minLength) {
       result += currentString;
   }
-  return result.substring(0, maxLength);
+  return result;
 }
 
 
@@ -132,6 +130,16 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
         setIsAnalyzing(false);
         return;
     }
+    
+    if (binFile && binFile.size > MAX_BIN_FILE_SIZE_BYTES) {
+        toast({
+            title: "File Too Large",
+            description: `The firmware file '${binFile.name}' is larger than ${formatBytes(MAX_BIN_FILE_SIZE_BYTES)}. Please use a smaller file.`,
+            variant: "destructive",
+        });
+        setIsAnalyzing(false);
+        return;
+    }
 
     try {
         let firmwareContent: string | undefined;
@@ -188,7 +196,7 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
           <p className="mt-4 text-center text-muted-foreground">
             <span className="font-semibold text-primary">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-muted-foreground">.bin and .txt files supported</p>
+          <p className="text-xs text-muted-foreground">.bin (Max 4MB) and .txt files supported</p>
           <input
             ref={fileInputRef}
             type="file"
