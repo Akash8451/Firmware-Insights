@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
 const AnalyzeFirmwareInputSchema = z.object({
-  firmwareContent: z.string().optional().describe('The extracted strings from the .bin firmware file.'),
+  firmwareContent: z.string().optional().describe('The extracted text strings from the .bin firmware file.'),
   bootlogContent: z.string().optional().describe('The content of the bootlog.txt file.'),
 });
 export type AnalyzeFirmwareInput = z.infer<typeof AnalyzeFirmwareInputSchema>;
@@ -30,7 +30,7 @@ const UnsafeApiSchema = z.object({
 const CveSchema = z.object({
     cveId: z.string().describe('The CVE identifier, e.g., "CVE-2022-12345".'),
     description: z.string().describe('A detailed description of the vulnerability.'),
-    cvssScore: z.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
+    cvssScore: z.coerce.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
     summary: z.string().describe('A 2-3 bullet point summary of the risk, formatted as a single string with newlines.'),
     remediation: z.string().optional().describe('A brief, actionable remediation step, e.g., "Upgrade package X to version Y".'),
 });
@@ -50,7 +50,7 @@ const SbomComponentSchema = z.object({
 
 const FirmwareTypeSchema = z.object({
     type: z.string().describe('The classified device type, e.g., "Router", "Camera", "IoT Sensor", "Unknown".'),
-    confidence: z.number().min(0).max(1).describe('The confidence score for the classification, from 0.0 to 1.0.'),
+    confidence: z.coerce.number().min(0).max(1).describe('The confidence score for the classification, from 0.0 to 1.0.'),
     reasoning: z.string().describe('Brief reasoning for the classification based on found files or strings.'),
 });
 
@@ -62,7 +62,7 @@ const FileSystemInsightSchema = z.object({
 });
 
 const RemediationStepSchema = z.object({
-    priority: z.number().describe("The priority of the remediation step, with 1 being the highest."),
+    priority: z.coerce.number().describe("The priority of the remediation step, with 1 being the highest."),
     description: z.string().describe("A detailed description of the remediation action to be taken."),
 });
 
