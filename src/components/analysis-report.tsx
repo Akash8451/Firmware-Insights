@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -56,7 +56,16 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
       { name: "Unsafe APIs", value: unsafeApis.length, fill: "hsl(var(--chart-3))" },
     ].filter((d) => d.value > 0);
   }, [cves.length, secrets.length, unsafeApis.length]);
-
+  
+  const handleExportJson = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(analysis, null, 2)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = "firmware-analysis-report.json";
+    link.click();
+  };
 
   return (
     <div className="w-full space-y-6 animate-in fade-in-50">
@@ -65,10 +74,16 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
             <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Analysis Report</h1>
             <p className="text-muted-foreground">A summary of the security posture of your firmware.</p>
         </div>
-        <Button onClick={onReset} variant="outline">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Analyze New Files
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button onClick={handleExportJson} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export JSON
+            </Button>
+            <Button onClick={onReset} variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Analyze New Files
+            </Button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
