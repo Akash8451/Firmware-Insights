@@ -184,6 +184,14 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                     </div>
                   ) : <p className="text-sm text-muted-foreground">No specific hardware detected.</p>}
                 </div>
+                 <div>
+                  <h4 className="font-semibold mb-1">Detected Modules/Drivers</h4>
+                  {bootlogAnalysis.modules && bootlogAnalysis.modules.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                        {bootlogAnalysis.modules.map((mod, i) => <Badge key={i} variant="secondary">{mod}</Badge>)}
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground">No modules or drivers detected.</p>}
+                </div>
                 <div>
                   <h4 className="font-semibold mb-1">Analysis Summary</h4>
                   <p className="text-sm text-muted-foreground">{bootlogAnalysis.summary}</p>

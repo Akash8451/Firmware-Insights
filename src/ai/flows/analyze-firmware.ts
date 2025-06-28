@@ -37,6 +37,7 @@ const CveSchema = z.object({
 const BootlogAnalysisSchema = z.object({
     kernelVersion: z.string().optional().describe('The detected Linux kernel version.'),
     hardware: z.array(z.string()).describe('A list of identified hardware models or components.'),
+    modules: z.array(z.string()).describe('A list of detected kernel modules or drivers and their versions, e.g., "ath9k 1.0.0".'),
     summary: z.string().describe('A summary of interesting findings or anomalies in the bootlog.'),
 });
 
@@ -71,7 +72,7 @@ Extracted strings from firmware file:
 {{{firmwareContent}}}
 
 Please perform the following analysis based ONLY on the provided content:
-1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, and summarize any anomalies or interesting entries.
+1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, detected kernel modules with their versions (e.g., "ath9k 1.0.0"), and summarize any anomalies or interesting entries.
 2.  **Secrets Detection**: Scan the extracted firmware strings and bootlog for anything that looks like a hardcoded secret (API keys, passwords, private keys). For each, describe what it is and recommend rotating it.
 3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
 4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
