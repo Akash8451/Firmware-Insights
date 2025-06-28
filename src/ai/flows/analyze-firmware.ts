@@ -41,12 +41,19 @@ const BootlogAnalysisSchema = z.object({
     summary: z.string().describe('A summary of interesting findings or anomalies in the bootlog.'),
 });
 
+const SbomComponentSchema = z.object({
+    name: z.string().describe('The name of the software component or package.'),
+    version: z.string().describe('The version of the component.'),
+    type: z.string().describe('The type of component, e.g., "OS Package", "Library", "Application".'),
+});
+
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
     bootlogAnalysis: BootlogAnalysisSchema,
     cves: z.array(CveSchema).describe('A list of Common Vulnerabilities and Exposures (CVEs) found.'),
     secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found.'),
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
+    sbom: z.array(SbomComponentSchema).describe('A list of software components identified in the firmware (Software Bill of Materials).'),
 });
 export type AnalyzeFirmwareOutput = z.infer<typeof AnalyzeFirmwareOutputSchema>;
 
@@ -76,7 +83,8 @@ Please perform the following analysis based ONLY on the provided content:
 2.  **Secrets Detection**: Scan the extracted firmware strings and bootlog for anything that looks like a hardcoded secret (API keys, passwords, private keys). For each, describe what it is and recommend rotating it.
 3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
 4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
-5.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
+5.  **SBOM Generation**: From the firmware strings and bootlog, identify software packages, libraries, and applications (like dropbear, busybox, dnsmasq, etc.). For each, list its name, version, and type (e.g., "OS Package", "Library", "Application"). This should resemble a Software Bill of Materials (SBOM).
+6.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
 
 Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,

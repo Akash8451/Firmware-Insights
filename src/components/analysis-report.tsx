@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 
 const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
   if (score >= 9.0) return 'destructive';
@@ -16,7 +18,7 @@ const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, bootlogAnalysis, cves, secrets, unsafeApis } = analysis;
+  const { overallSummary, bootlogAnalysis, cves, secrets, unsafeApis, sbom } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length;
 
@@ -77,7 +79,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardContent>
       </Card>
       
-      <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'bootlog']} className="w-full space-y-4">
+      <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'sbom', 'bootlog']} className="w-full space-y-4">
         
         <Card>
           <AccordionItem value="cves" className="border-b-0">
@@ -163,6 +165,42 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                         </Card>
                     )) : <p className="text-muted-foreground">No strings indicating unsafe API usage were found.</p>}
                 </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Card>
+
+        <Card>
+          <AccordionItem value="sbom" className="border-b-0">
+            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                <div className="flex items-center gap-3">
+                    <ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" />
+                    <span>Software Bill of Materials (SBOM)</span>
+                    <Badge variant="secondary">{sbom.length}</Badge>
+                </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6">
+                {sbom && sbom.length > 0 ? (
+                    <Card>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Version</TableHead>
+                            <TableHead>Type</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sbom.map((component, i) => (
+                            <TableRow key={i}>
+                                <TableCell className="font-medium">{component.name}</TableCell>
+                                <TableCell>{component.version}</TableCell>
+                                <TableCell>{component.type}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </Card>
+                ) : <p className="text-muted-foreground">No software components were identified to generate an SBOM.</p>}
             </AccordionContent>
           </AccordionItem>
         </Card>
