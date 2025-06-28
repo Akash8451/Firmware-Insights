@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
 const AnalyzeFirmwareInputSchema = z.object({
-  firmwareContent: z.string().optional().describe('The extracted text strings from the .bin firmware file.'),
+  firmwareContent: z.string().describe('The extracted text strings from the .bin firmware file.'),
   bootlogContent: z.string().optional().describe('The content of the bootlog.txt file.'),
 });
 export type AnalyzeFirmwareInput = z.infer<typeof AnalyzeFirmwareInputSchema>;

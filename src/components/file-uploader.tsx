@@ -16,7 +16,6 @@ type UploadedFile = {
 };
 
 const acceptedFileTypes = [".bin", ".txt"];
-const MAX_BIN_FILE_SIZE_BYTES = 4 * 1024 * 1024; // 4MB
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
@@ -130,16 +129,6 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
         setIsAnalyzing(false);
         return;
     }
-    
-    if (binFile && binFile.size > MAX_BIN_FILE_SIZE_BYTES) {
-        toast({
-            title: "File Too Large",
-            description: `The firmware file '${binFile.name}' is larger than ${formatBytes(MAX_BIN_FILE_SIZE_BYTES)}. Please use a smaller file.`,
-            variant: "destructive",
-        });
-        setIsAnalyzing(false);
-        return;
-    }
 
     try {
         let firmwareContent: string | undefined;
@@ -196,7 +185,7 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
           <p className="mt-4 text-center text-muted-foreground">
             <span className="font-semibold text-primary">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-muted-foreground">.bin (Max 4MB) and .txt files supported</p>
+          <p className="text-xs text-muted-foreground">.bin and .txt files supported</p>
           <input
             ref={fileInputRef}
             type="file"
