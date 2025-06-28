@@ -1,7 +1,27 @@
+"use client";
+
+import { useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { FileUploader } from '@/components/file-uploader';
+import { AnalysisReport } from '@/components/analysis-report';
+import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 
 export default function Home() {
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeFirmwareOutput | null>(null);
+
+  if (analysisResult) {
+    return (
+      <div className="flex flex-col items-center justify-start min-h-screen bg-background text-foreground font-body p-4 sm:p-8">
+        <div className="w-full max-w-5xl">
+          <AnalysisReport 
+            analysis={analysisResult} 
+            onReset={() => setAnalysisResult(null)} 
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground font-body">
       <div className="container mx-auto px-4 py-8 sm:py-12 md:py-16">
@@ -19,7 +39,7 @@ export default function Home() {
             </header>
 
             <main>
-                <FileUploader />
+                <FileUploader onAnalysisComplete={setAnalysisResult} />
             </main>
 
             <footer className="mt-12 text-sm text-muted-foreground">

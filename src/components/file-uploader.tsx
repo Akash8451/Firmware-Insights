@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { UploadCloud, FileText, Binary, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { analyzeFirmware, type AnalyzeFirmwareOutput } from "@/ai/flows/analyze-firmware";
+import { useToast } from "@/hooks/use-toast";
+
 
 type UploadedFile = {
   id: string;
@@ -24,12 +26,12 @@ function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function FileUploader() {
+export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (result: AnalyzeFirmwareOutput) => void }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleFileChange = (newFiles: FileList | null) => {
     if (newFiles) {
@@ -70,31 +72,50 @@ export function FileUploader() {
     setFiles(prev => prev.filter(f => f.id !== id));
   };
   
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (files.length === 0) return;
     setIsAnalyzing(true);
-    setProgress(0);
+
+    const binFile = files.find(f => f.file.name.endsWith('.bin'))?.file;
+    const txtFile = files.find(f => f.file.name.endsWith('.txt'))?.file;
+    
+    if (!binFile && !txtFile) {
+        toast({
+            title: "No valid files found",
+            description: "Please upload at least one .bin or .txt file.",
+            variant: "destructive",
+        });
+        setIsAnalyzing(false);
+        return;
+    }
+
+    const fileToText = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    try {
+        const firmwareContent = binFile ? await fileToText(binFile) : undefined;
+        const bootlogContent = txtFile ? await fileToText(txtFile) : undefined;
+        
+        const result = await analyzeFirmware({ firmwareContent, bootlogContent });
+        onAnalysisComplete(result);
+    } catch (error) {
+        console.error("Analysis failed:", error);
+        toast({
+            title: "Analysis Failed",
+            description: "Something went wrong during the analysis. Please try again.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isAnalyzing) {
-      timer = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(timer);
-            setTimeout(() => {
-              setIsAnalyzing(false);
-            }, 500);
-            return 100;
-          }
-          return prev + 1;
-        });
-      }, 50);
-    }
-    return () => clearInterval(timer);
-  }, [isAnalyzing]);
-  
   const FileIcon = ({ file }: { file: File }) => {
     if (file.name.endsWith('.bin')) {
       return <Binary className="h-6 w-6 text-primary" />;
@@ -166,15 +187,6 @@ export function FileUploader() {
         
         {files.length > 0 && (
           <div className="space-y-4 pt-4">
-            {isAnalyzing && (
-              <div className="space-y-2">
-                  <div className="flex justify-between text-sm font-medium">
-                      <span>Analyzing...</span>
-                      <span>{Math.round(progress)}%</span>
-                  </div>
-                  <Progress value={progress} className="w-full" />
-              </div>
-            )}
             <Button
               onClick={handleAnalyze}
               disabled={files.length === 0 || isAnalyzing}
