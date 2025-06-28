@@ -30,7 +30,7 @@ const UnsafeApiSchema = z.object({
 const CveSchema = z.object({
     cveId: z.string().describe('The CVE identifier, e.g., "CVE-2022-12345".'),
     description: z.string().describe('A detailed description of the vulnerability.'),
-    cvssScore: z.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
+    cvssScore: z.coerce.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
     summary: z.string().describe('A 2-3 bullet point summary of the risk, formatted as a single string with newlines.'),
     remediation: z.string().optional().describe('A brief, actionable remediation step, e.g., "Upgrade package X to version Y".'),
 });
@@ -50,7 +50,7 @@ const SbomComponentSchema = z.object({
 
 const FirmwareTypeSchema = z.object({
     type: z.string().describe('The classified device type, e.g., "Router", "Camera", "IoT Sensor", "Unknown".'),
-    confidence: z.number().min(0).max(1).describe('The confidence score for the classification, from 0.0 to 1.0.'),
+    confidence: z.coerce.number().min(0).max(1).describe('The confidence score for the classification, from 0.0 to 1.0.'),
     reasoning: z.string().describe('Brief reasoning for the classification based on found files or strings.'),
 });
 
@@ -62,7 +62,7 @@ const FileSystemInsightSchema = z.object({
 });
 
 const RemediationStepSchema = z.object({
-    priority: z.number().describe("The priority of the remediation step, with 1 being the highest."),
+    priority: z.coerce.number().describe("The priority of the remediation step, with 1 being the highest."),
     description: z.string().describe("A detailed description of the remediation action to be taken."),
 });
 
@@ -108,7 +108,7 @@ Based *only* on the provided \`firmwareContent\` and \`bootlogContent\`, perform
 1.  **Overall Summary**: Write a concise, high-level summary of the firmware's security posture.
 2.  **Firmware Type**: Classify the device type (e.g., "Router", "Camera", "IoT Sensor"). Provide a confidence score (0.0 to 1.0) and briefly explain your reasoning.
 3.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
-4.  **SBOM & CVEs**: Identify software components and their versions to create a simple Software Bill of Materials (SBOM). Based on the SBOM, list any associated Common Vulnerabilities and Exposures (CVEs). For each CVE, include its ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible.
+4.  **SBOM & Rigorous CVE Analysis**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings. Then, for every single component identified in the SBOM, perform a rigorous search for associated Common Vulnerabilities and Exposures (CVEs). For each CVE, include its ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible. Be exhaustive in your search.
 5.  **Secrets**: Diligently scan for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`). For each secret, note its type, value, and a remediation recommendation.
 6.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4). For each, provide the function/algorithm name and explain why it's a risk.
 7.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications. If you suspect a file or pattern indicates malware or a backdoor, set the \`threatType\` and explain your reasoning.
