@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -16,9 +16,18 @@ const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
   return 'outline';
 };
 
+const DeviceTypeIcon = ({ type }: { type: string }) => {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('router')) return <Router className="h-4 w-4 text-muted-foreground" />;
+    if (lowerType.includes('camera')) return <Camera className="h-4 w-4 text-muted-foreground" />;
+    if (lowerType.includes('iot') || lowerType.includes('sensor')) return <MemoryStick className="h-4 w-4 text-muted-foreground" />;
+    if (lowerType.includes('printer')) return <Printer className="h-4 w-4 text-muted-foreground" />;
+    return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
+};
+
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, bootlogAnalysis, cves, secrets, unsafeApis, sbom } = analysis;
+  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length;
 
@@ -35,7 +44,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
@@ -45,6 +54,18 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                 <div className="text-2xl font-bold">{totalIssues}</div>
                 <p className="text-xs text-muted-foreground">
                     {cves.length} CVEs, {secrets.length} secrets, {unsafeApis.length} unsafe APIs
+                </p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Device Type</CardTitle>
+                <DeviceTypeIcon type={firmwareType.type} />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{firmwareType.type}</div>
+                <p className="text-xs text-muted-foreground">
+                    Confidence: {(firmwareType.confidence * 100).toFixed(0)}%
                 </p>
             </CardContent>
         </Card>
@@ -76,6 +97,11 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{overallSummary}</p>
+          {firmwareType.reasoning && (
+             <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50">
+                <span className="font-semibold text-foreground">Classification Rationale:</span> {firmwareType.reasoning}
+              </p>
+            )}
         </CardContent>
       </Card>
       

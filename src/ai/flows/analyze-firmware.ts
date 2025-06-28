@@ -47,8 +47,15 @@ const SbomComponentSchema = z.object({
     type: z.string().describe('The type of component, e.g., "OS Package", "Library", "Application".'),
 });
 
+const FirmwareTypeSchema = z.object({
+    type: z.string().describe('The classified device type, e.g., "Router", "Camera", "IoT Sensor", "Unknown".'),
+    confidence: z.number().min(0).max(1).describe('The confidence score for the classification, from 0.0 to 1.0.'),
+    reasoning: z.string().describe('Brief reasoning for the classification based on found files or strings.'),
+});
+
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
+    firmwareType: FirmwareTypeSchema,
     bootlogAnalysis: BootlogAnalysisSchema,
     cves: z.array(CveSchema).describe('A list of Common Vulnerabilities and Exposures (CVEs) found.'),
     secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found.'),
@@ -88,7 +95,8 @@ Please perform the following analysis based ONLY on the provided content:
 3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
 4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
 5.  **SBOM Generation**: From the firmware strings and bootlog, identify software packages, libraries, and applications (like dropbear, busybox, dnsmasq, etc.). For each, list its name, version, and type (e.g., "OS Package", "Library", "Application"). This should resemble a Software Bill of Materials (SBOM).
-6.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
+6.  **Firmware Type Classification**: Based on key binaries (e.g., \`httpd\`, \`udhcpd\`, \`camera_app\`) and configuration files/strings found in the provided text, heuristically determine the device type (e.g., "Router", "Camera", "IoT Sensor", "Printer", "Unknown"). Provide a confidence score between 0.0 and 1.0, and a brief justification for your classification.
+7.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
 
 Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,
