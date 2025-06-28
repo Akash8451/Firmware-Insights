@@ -44,7 +44,7 @@ const fileToArrayBuffer = (file: File): Promise<ArrayBuffer> => {
   });
 }
 
-const extractStrings = (buffer: ArrayBuffer, minLength = 4, maxLength = 100000): string => {
+const extractStrings = (buffer: ArrayBuffer, minLength = 4, maxLength = 250000): string => {
   const view = new Uint8Array(buffer);
   let result = '';
   let currentString = '';
