@@ -80,7 +80,11 @@ Extracted strings from firmware file:
 
 Please perform the following analysis based ONLY on the provided content:
 1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, detected kernel modules with their versions (e.g., "ath9k 1.0.0"), and summarize any anomalies or interesting entries.
-2.  **Secrets Detection**: Scan the extracted firmware strings and bootlog for anything that looks like a hardcoded secret (API keys, passwords, private keys). For each, describe what it is and recommend rotating it.
+2.  **Secrets Detection**: Perform a comprehensive scan for hardcoded secrets within the extracted firmware strings and the bootlog. Think like a security analyst using a combination of techniques:
+    *   **Pattern Matching**: Look for common secret formats like API keys (e.g., \`AKIA...\` for AWS), private key blocks (e.g., \`-----BEGIN PRIVATE KEY-----\`), JWTs, and bearer tokens.
+    *   **Heuristic Analysis**: Identify strings that are likely to be passwords or passphrases, even if they are common words or simple patterns (e.g., \`password="admin123"\`).
+    *   **Entropy-like Analysis**: Identify high-entropy strings that look like randomly generated keys or tokens, even if they don't match a known format. These are often long, alphanumeric strings with special characters.
+    For each potential secret found, describe its likely type (e.g., "Potential API Key", "Hardcoded Password", "Private Key Block"), report the detected value, and provide a clear recommendation for remediation, such as rotating the secret and storing it in a secure vault. Be diligent, as secrets can be disguised or in non-standard formats.
 3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
 4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
 5.  **SBOM Generation**: From the firmware strings and bootlog, identify software packages, libraries, and applications (like dropbear, busybox, dnsmasq, etc.). For each, list its name, version, and type (e.g., "OS Package", "Library", "Application"). This should resemble a Software Bill of Materials (SBOM).
