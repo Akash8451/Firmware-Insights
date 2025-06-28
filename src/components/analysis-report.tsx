@@ -1,5 +1,5 @@
 'use client';
-
+import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
 
 
 const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
@@ -30,6 +32,31 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
   const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length;
+  
+  const cveSeverityData = React.useMemo(() => {
+    const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    cves.forEach((cve) => {
+      if (cve.cvssScore >= 9.0) counts.Critical++;
+      else if (cve.cvssScore >= 7.0) counts.High++;
+      else if (cve.cvssScore >= 4.0) counts.Medium++;
+      else counts.Low++;
+    });
+    return [
+      { name: "Critical", value: counts.Critical, fill: "hsl(var(--destructive))" },
+      { name: "High", value: counts.High, fill: "hsl(var(--chart-1))" },
+      { name: "Medium", value: counts.Medium, fill: "hsl(var(--chart-5))" },
+      { name: "Low", value: counts.Low, fill: "hsl(var(--chart-2))" },
+    ].filter((d) => d.value > 0);
+  }, [cves]);
+
+  const issueBreakdownData = React.useMemo(() => {
+    return [
+      { name: "CVEs", value: cves.length, fill: "hsl(var(--chart-1))" },
+      { name: "Secrets", value: secrets.length, fill: "hsl(var(--chart-2))" },
+      { name: "Unsafe APIs", value: unsafeApis.length, fill: "hsl(var(--chart-3))" },
+    ].filter((d) => d.value > 0);
+  }, [cves.length, secrets.length, unsafeApis.length]);
+
 
   return (
     <div className="w-full space-y-6 animate-in fade-in-50">
@@ -105,6 +132,77 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardContent>
       </Card>
       
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>CVE Severity Distribution</CardTitle>
+            <CardDescription>Breakdown of vulnerabilities by CVSS score.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {cveSeverityData.length > 0 ? (
+              <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
+                <PieChart>
+                  <Tooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <Pie
+                    data={cveSeverityData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    strokeWidth={5}
+                  >
+                    {cveSeverityData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Legend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                No CVE data to display
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Issue Type Breakdown</CardTitle>
+            <CardDescription>Distribution of all identified security issues.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {issueBreakdownData.length > 0 ? (
+              <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
+                <PieChart>
+                  <Tooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <Pie
+                    data={issueBreakdownData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    strokeWidth={5}
+                  >
+                    {issueBreakdownData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Legend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                 No issue data to display
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'sbom', 'bootlog', 'file-explorer']} className="w-full space-y-4">
         
         <Card>
