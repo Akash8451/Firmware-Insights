@@ -97,30 +97,33 @@ const prompt = ai.definePrompt({
   name: 'analyzeFirmwarePrompt',
   input: {schema: AnalyzeFirmwareInputSchema},
   output: {schema: AnalyzeFirmwareOutputSchema},
-  prompt: `You are a world-class firmware security analyst, reverse engineer, and remediation expert. Your task is to perform a deep analysis of the provided firmware content and bootlog to identify vulnerabilities, secrets, and other risks, and then create a prioritized action plan.
+  prompt: `You are an expert firmware security analysis tool. Your main task is to analyze the provided firmware strings and bootlog content to identify a wide range of security risks.
 
-You must provide your analysis in a structured JSON format.
+Your response MUST be a valid JSON object that strictly adheres to the provided output schema.
 
-Here is the data you need to analyze:
+**Analysis Instructions:**
+
+Based *only* on the provided \`firmwareContent\` and \`bootlogContent\`, perform the following analysis:
+
+1.  **Overall Summary**: Write a concise, high-level summary of the firmware's security posture.
+2.  **Firmware Type**: Classify the device type (e.g., "Router", "Camera", "IoT Sensor"). Provide a confidence score (0.0 to 1.0) and briefly explain your reasoning.
+3.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
+4.  **SBOM & CVEs**: Identify software components and their versions to create a simple Software Bill of Materials (SBOM). Based on the SBOM, list any associated Common Vulnerabilities and Exposures (CVEs). For each CVE, include its ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible.
+5.  **Secrets**: Diligently scan for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`). For each secret, note its type, value, and a remediation recommendation.
+6.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4). For each, provide the function/algorithm name and explain why it's a risk.
+7.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications. If you suspect a file or pattern indicates malware or a backdoor, set the \`threatType\` and explain your reasoning.
+8.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact. For each potential vulnerability, provide a title, a detailed description of the logical flaw and its impact, and a suggested remediation.
+9.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings. Rank the steps from most to least critical.
+
+**IMPORTANT**: If you cannot find any items for a particular array field (e.g., no CVEs are found), you MUST return an empty array \`[]\` for that field. Do not omit the field from the JSON output. Do not make up information that cannot be inferred from the provided text.
+
+**Firmware Data:**
 
 Bootlog contents:
 {{{bootlogContent}}}
 
 Extracted strings from firmware file:
 {{{firmwareContent}}}
-
-Please perform the following analysis based ONLY on the provided content:
-1.  **Deep Secret Detection**: Perform a comprehensive scan for hardcoded secrets. Pay special attention to username/password combinations, private keys, and API tokens. Be diligent, as secrets can be disguised.
-2.  **File System and Malware Analysis**: Identify noteworthy file paths. Scrutinize the firmware strings for keywords like 'upnp', 'ssh', 'root', 'shell'. When found, create a File System Insight and explain the security implications. Scan for signs of malware or suspicious backdoors (e.g., unusual script names, obfuscated code, connections to suspicious domains). If found, tag it with a 'threatType' and provide 'threatReasoning'.
-3.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, hardware identifiers, and detected kernel modules with versions.
-4.  **Unsafe API Usage**: Scan for usage of insecure C functions (strcpy, gets) or weak crypto (MD5, RC4).
-5.  **SBOM & CVE Lookup**: Generate an SBOM from identified components. Based on these, list potential CVEs with their ID, description, CVSS score, a 2-3 bullet point risk summary, and a brief remediation step.
-6.  **Firmware Type Classification**: Heuristically determine the device type, confidence score, and justification.
-7.  **Potential Vulnerability Discovery (Zero-Day Analysis)**: Go beyond known CVEs. Act as a reverse engineer. Analyze the interplay between components, scripts, and configurations to uncover *potential new vulnerabilities*. For each finding, describe the logical flaw, its potential impact, and a suggested remediation.
-8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture.
-9.  **Automated Remediation Plan**: Based on ALL findings (CVEs, secrets, potential vulnerabilities), generate a prioritized, step-by-step remediation plan. Rank actions from most to least critical.
-
-Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,
 });
 

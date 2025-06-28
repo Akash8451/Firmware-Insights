@@ -297,7 +297,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                             <CardContent>
                                 <h4 className="font-semibold mb-2 text-sm">Summary:</h4>
                                 <div className="pl-4 border-l-2 border-primary/50 space-y-1">
-                                {cve.summary.split('\n').map((line, i) => (
+                                {(cve.summary || '').split('\n').map((line, i) => (
                                     line.trim() && <p key={i} className="text-sm text-muted-foreground">{line.replace(/^- /, '• ')}</p>
                                 ))}
                                 </div>
