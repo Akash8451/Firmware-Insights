@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -29,7 +29,7 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights } = analysis;
+  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length;
   
@@ -147,6 +147,27 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardContent>
       </Card>
       
+      {remediationPlan && remediationPlan.length > 0 && (
+        <Card className="border-primary/50">
+          <CardHeader className="flex flex-row items-center gap-3 space-y-0">
+            <ShieldAlert className="h-6 w-6 text-primary" />
+            <div>
+              <CardTitle>Actionable Remediation Plan</CardTitle>
+              <CardDescription>A prioritized list of steps to improve security.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-3 list-decimal list-inside">
+              {remediationPlan.map((step) => (
+                <li key={step.priority} className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">{step.description}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
@@ -247,6 +268,12 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                                     line.trim() && <p key={i} className="text-sm text-muted-foreground">{line.replace(/^- /, '• ')}</p>
                                 ))}
                                 </div>
+                                {cve.remediation && (
+                                  <>
+                                    <h4 className="font-semibold mt-4 mb-2 text-sm">Remediation:</h4>
+                                    <p className="text-sm text-muted-foreground">{cve.remediation}</p>
+                                  </>
+                                )}
                             </CardContent>
                         </Card>
                     )) : <p className="text-muted-foreground">No CVEs were automatically identified.</p>}

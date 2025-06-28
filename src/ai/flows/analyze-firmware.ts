@@ -32,6 +32,7 @@ const CveSchema = z.object({
     description: z.string().describe('A detailed description of the vulnerability.'),
     cvssScore: z.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
     summary: z.string().describe('A 2-3 bullet point summary of the risk, formatted as a single string with newlines.'),
+    remediation: z.string().optional().describe('A brief, actionable remediation step, e.g., "Upgrade package X to version Y".'),
 });
 
 const BootlogAnalysisSchema = z.object({
@@ -58,6 +59,11 @@ const FileSystemInsightSchema = z.object({
     description: z.string().describe('A brief explanation of why this file is noteworthy for security analysis.'),
 });
 
+const RemediationStepSchema = z.object({
+    priority: z.number().describe("The priority of the remediation step, with 1 being the highest."),
+    description: z.string().describe("A detailed description of the remediation action to be taken."),
+});
+
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
     firmwareType: FirmwareTypeSchema,
@@ -67,6 +73,7 @@ const AnalyzeFirmwareOutputSchema = z.object({
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
     sbom: z.array(SbomComponentSchema).describe('A list of software components identified in the firmware (Software Bill of Materials).'),
     fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings.'),
+    remediationPlan: z.array(RemediationStepSchema).describe("A prioritized list of actionable remediation steps, ranked from most to least critical."),
 });
 export type AnalyzeFirmwareOutput = z.infer<typeof AnalyzeFirmwareOutputSchema>;
 
@@ -79,7 +86,7 @@ const prompt = ai.definePrompt({
   name: 'analyzeFirmwarePrompt',
   input: {schema: AnalyzeFirmwareInputSchema},
   output: {schema: AnalyzeFirmwareOutputSchema},
-  prompt: `You are a world-class firmware security analyst. Your task is to analyze the provided firmware content and bootlog to identify security vulnerabilities, hardcoded secrets, unsafe API usage, and other potential risks.
+  prompt: `You are a world-class firmware security analyst and remediation expert. Your task is to analyze the provided firmware content and bootlog to identify security vulnerabilities, hardcoded secrets, unsafe API usage, and other potential risks, and then create a prioritized action plan.
 
 You must provide your analysis in a structured JSON format.
 
@@ -92,18 +99,15 @@ Extracted strings from firmware file:
 {{{firmwareContent}}}
 
 Please perform the following analysis based ONLY on the provided content:
-1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, detected kernel modules with their versions (e.g., "ath9k 1.0.0"), and summarize any anomalies or interesting entries.
-2.  **Secrets Detection**: Perform a comprehensive scan for hardcoded secrets within the extracted firmware strings and the bootlog. Think like a security analyst using a combination of techniques:
-    *   **Pattern Matching**: Look for common secret formats like API keys (e.g., \`AKIA...\` for AWS), private key blocks (e.g., \`-----BEGIN PRIVATE KEY-----\`), JWTs, and bearer tokens.
-    *   **Heuristic Analysis**: Identify strings that are likely to be passwords or passphrases, even if they are common words or simple patterns (e.g., \`password="admin123"\`).
-    *   **Entropy-like Analysis**: Identify high-entropy strings that look like randomly generated keys or tokens, even if they don't match a known format. These are often long, alphanumeric strings with special characters.
-    For each potential secret found, describe its likely type (e.g., "Potential API Key", "Hardcoded Password", "Private Key Block"), report the detected value, and provide a clear recommendation for remediation, such as rotating the secret and storing it in a secure vault. Be diligent, as secrets can be disguised or in non-standard formats.
+1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, detected kernel modules with their versions (e.g., "ath9k 1.0.0"), and summarize any anomalies or interesting entries in plain English.
+2.  **Secrets Detection**: Perform a comprehensive scan for hardcoded secrets. For each potential secret found, describe its likely type, report the detected value, and provide a clear recommendation for remediation. Be diligent, as secrets can be disguised.
 3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
-4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
-5.  **SBOM Generation**: From the firmware strings and bootlog, identify software packages, libraries, and applications (like dropbear, busybox, dnsmasq, etc.). For each, list its name, version, and type (e.g., "OS Package", "Library", "Application"). This should resemble a Software Bill of Materials (SBOM).
-6.  **Firmware Type Classification**: Based on key binaries (e.g., \`httpd\`, \`udhcpd\`, \`camera_app\`) and configuration files/strings found in the provided text, heuristically determine the device type (e.g., "Router", "Camera", "IoT Sensor", "Printer", "Unknown"). Provide a confidence score between 0.0 and 1.0, and a brief justification for your classification.
-7.  **File System Insights**: Scan the extracted strings for anything that looks like a file path (e.g., starting with '/'). Identify noteworthy files that are relevant to security analysis, such as configuration files, user credentials, or key binaries. For each one, provide the path and a brief description of its significance.
-8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
+4.  **CVE Lookup (Simulated)**: Based on identified components, list potential CVEs. For each CVE, provide its ID, a detailed description, a CVSS score (0.0-10.0), a 2-3 bullet point summary of the risk, and a brief, actionable remediation step (e.g., "Upgrade 'openssl' to version '1.1.1k' or later.").
+5.  **SBOM Generation**: Identify software packages, libraries, and applications to generate a Software Bill of Materials (SBOM).
+6.  **Firmware Type Classification**: Heuristically determine the device type, confidence score, and justification.
+7.  **File System Insights**: Identify noteworthy file paths relevant to security analysis and explain their significance.
+8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a single paragraph.
+9.  **Automated Remediation Plan**: Based on ALL findings, generate a prioritized, step-by-step remediation plan. Rank actions from most to least critical. Each step should be a clear, actionable instruction. For example: "1. Critical: Rotate the leaked AWS API key found in '/etc/config.json'.", "2. High: Patch CVE-2022-12345 by upgrading the 'openssl' package to version '1.1.1k'.", "3. Medium: Replace the use of 'strcpy' in the '/bin/login' binary with 'strncpy' to prevent buffer overflows."
 
 Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,
