@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { FileUploader } from '@/components/file-uploader';
 import { AnalysisReport } from '@/components/analysis-report';
@@ -8,6 +8,11 @@ import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 
 export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeFirmwareOutput | null>(null);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
 
   const features = [
     "AI-Enhanced Insights",
@@ -74,7 +79,7 @@ export default function Home() {
             </main>
 
             <footer className="mt-12 text-sm text-muted-foreground">
-                <p>&copy; {new Date().getFullYear()} Firmware Insights. All Rights Reserved.</p>
+                <p>&copy; {year} Firmware Insights. All Rights Reserved.</p>
             </footer>
         </div>
       </div>
