@@ -29,9 +29,9 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan } = analysis;
+  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
 
-  const totalIssues = cves.length + secrets.length + unsafeApis.length;
+  const totalIssues = cves.length + secrets.length + unsafeApis.length + potentialVulnerabilities.length;
   
   const cveSeverityData = React.useMemo(() => {
     const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
@@ -54,8 +54,9 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
       { name: "CVEs", value: cves.length, fill: "hsl(var(--chart-1))" },
       { name: "Secrets", value: secrets.length, fill: "hsl(var(--chart-2))" },
       { name: "Unsafe APIs", value: unsafeApis.length, fill: "hsl(var(--chart-3))" },
+      { name: "Potential Vulns", value: potentialVulnerabilities.length, fill: "hsl(var(--chart-4))" },
     ].filter((d) => d.value > 0);
-  }, [cves.length, secrets.length, unsafeApis.length]);
+  }, [cves.length, secrets.length, unsafeApis.length, potentialVulnerabilities.length]);
   
   const handleExportJson = () => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -95,7 +96,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
             <CardContent>
                 <div className="text-2xl font-bold">{totalIssues}</div>
                 <p className="text-xs text-muted-foreground">
-                    {cves.length} CVEs, {secrets.length} secrets, {unsafeApis.length} unsafe APIs
+                    Across all security categories
                 </p>
             </CardContent>
         </Card>
@@ -239,15 +240,47 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </Card>
       </div>
 
-      <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'sbom', 'bootlog', 'file-explorer']} className="w-full space-y-4">
+      <Accordion type="multiple" defaultValue={['potential-vulns', 'cves', 'secrets']} className="w-full space-y-4">
         
+        {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
+            <Card>
+                <AccordionItem value="potential-vulns" className="border-b-0 border-destructive/50">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                        <div className="flex items-center gap-3">
+                            <ShieldAlert className="h-6 w-6 text-destructive" />
+                            <span>Potential Novel Vulnerabilities</span>
+                            <Badge variant="destructive">{potentialVulnerabilities.length}</Badge>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                        <div className="space-y-4">
+                            {potentialVulnerabilities.map((vuln, i) => (
+                                <Card key={i} className="bg-muted/30">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">{vuln.title}</CardTitle>
+                                        {vuln.filePath && <CardDescription className="pt-1 font-mono text-xs">{vuln.filePath}</CardDescription>}
+                                    </CardHeader>
+                                    <CardContent>
+                                        <h4 className="font-semibold mb-2 text-sm">Description:</h4>
+                                        <p className="text-sm text-muted-foreground">{vuln.description}</p>
+                                        <h4 className="font-semibold mt-4 mb-2 text-sm">Suggested Remediation:</h4>
+                                        <p className="text-sm text-muted-foreground">{vuln.remediation}</p>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+        )}
+
         <Card>
           <AccordionItem value="cves" className="border-b-0">
             <AccordionTrigger className="px-6 py-4 text-lg font-medium">
                 <div className="flex items-center gap-3">
-                    <AlertCircle className="h-6 w-6 text-destructive" />
+                    <AlertCircle className="h-6 w-6 text-primary" />
                     <span>CVEs Found</span>
-                    <Badge variant="destructive">{cves.length}</Badge>
+                    <Badge variant="default">{cves.length}</Badge>
                 </div>
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-6">
@@ -376,7 +409,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
             <AccordionTrigger className="px-6 py-4 text-lg font-medium">
                 <div className="flex items-center gap-3">
                     <FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" />
-                    <span>File System Insights</span>
+                    <span>File System & Malware Insights</span>
                     <Badge variant="secondary">{fileSystemInsights.length}</Badge>
                 </div>
             </AccordionTrigger>
@@ -385,13 +418,21 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                     {fileSystemInsights && fileSystemInsights.length > 0 ? fileSystemInsights.map((file, i) => (
                         <Card key={i} className="bg-muted/30">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-base font-mono">
-                                    <FileCode className="h-4 w-4" />
-                                    {file.path}
+                                <CardTitle className="flex items-center justify-between gap-2 text-base font-mono">
+                                    <div className="flex items-center gap-2">
+                                        <FileCode className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{file.path}</span>
+                                    </div>
+                                    {file.threatType && <Badge variant="destructive">{file.threatType}</Badge>}
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-2">
                                 <p className="text-sm text-muted-foreground">{file.description}</p>
+                                {file.threatReasoning && (
+                                    <div className="mt-2 pt-2 border-t border-border/50">
+                                        <p className="text-sm text-destructive"><span className="font-semibold">Threat Rationale:</span> {file.threatReasoning}</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )) : <p className="text-muted-foreground">No specific file paths of interest were identified from the provided strings.</p>}

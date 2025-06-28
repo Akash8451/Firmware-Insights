@@ -17,8 +17,8 @@ const AnalyzeFirmwareInputSchema = z.object({
 export type AnalyzeFirmwareInput = z.infer<typeof AnalyzeFirmwareInputSchema>;
 
 const SecretSchema = z.object({
-    type: z.string().describe('Type of secret, e.g., "API Key", "Password", "Private Key".'),
-    value: z.string().describe('The detected secret string.'),
+    type: z.string().describe('Type of secret, e.g., "API Key", "Password", "Username/Password Pair", "Private Key".'),
+    value: z.string().describe('The detected secret string or username/password pair.'),
     recommendation: z.string().describe('Recommendation for remediation, e.g., "Rotate key and store in a secure vault."'),
 });
 
@@ -57,6 +57,8 @@ const FirmwareTypeSchema = z.object({
 const FileSystemInsightSchema = z.object({
     path: z.string().describe('The full file path identified, e.g., "/etc/shadow".'),
     description: z.string().describe('A brief explanation of why this file is noteworthy for security analysis.'),
+    threatType: z.string().optional().describe('The type of threat detected, e.g., "Malware", "Suspicious Pattern", "Misconfiguration", "High-Risk Keyword".'),
+    threatReasoning: z.string().optional().describe("An explanation of why this is considered a potential threat."),
 });
 
 const RemediationStepSchema = z.object({
@@ -64,16 +66,25 @@ const RemediationStepSchema = z.object({
     description: z.string().describe("A detailed description of the remediation action to be taken."),
 });
 
+const PotentialVulnerabilitySchema = z.object({
+    title: z.string().describe("A concise title for the potential vulnerability."),
+    filePath: z.string().optional().describe("The file path or component where the issue is suspected."),
+    description: z.string().describe("A detailed description of the suspected vulnerability and its potential impact."),
+    remediation: z.string().describe("A suggested remediation or mitigation strategy."),
+});
+
+
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
     firmwareType: FirmwareTypeSchema,
     bootlogAnalysis: BootlogAnalysisSchema,
     cves: z.array(CveSchema).describe('A list of Common Vulnerabilities and Exposures (CVEs) found.'),
-    secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found.'),
+    secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found, including username/password pairs.'),
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
     sbom: z.array(SbomComponentSchema).describe('A list of software components identified in the firmware (Software Bill of Materials).'),
-    fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings.'),
+    fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings, including potential malware.'),
     remediationPlan: z.array(RemediationStepSchema).describe("A prioritized list of actionable remediation steps, ranked from most to least critical."),
+    potentialVulnerabilities: z.array(PotentialVulnerabilitySchema).describe("A list of potential zero-day or novel vulnerabilities discovered through deep analysis."),
 });
 export type AnalyzeFirmwareOutput = z.infer<typeof AnalyzeFirmwareOutputSchema>;
 
@@ -86,7 +97,7 @@ const prompt = ai.definePrompt({
   name: 'analyzeFirmwarePrompt',
   input: {schema: AnalyzeFirmwareInputSchema},
   output: {schema: AnalyzeFirmwareOutputSchema},
-  prompt: `You are a world-class firmware security analyst and remediation expert. Your task is to analyze the provided firmware content and bootlog to identify security vulnerabilities, hardcoded secrets, unsafe API usage, and other potential risks, and then create a prioritized action plan.
+  prompt: `You are a world-class firmware security analyst, reverse engineer, and remediation expert. Your task is to perform a deep analysis of the provided firmware content and bootlog to identify vulnerabilities, secrets, and other risks, and then create a prioritized action plan.
 
 You must provide your analysis in a structured JSON format.
 
@@ -99,15 +110,15 @@ Extracted strings from firmware file:
 {{{firmwareContent}}}
 
 Please perform the following analysis based ONLY on the provided content:
-1.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, any hardware identifiers, detected kernel modules with their versions (e.g., "ath9k 1.0.0"), and summarize any anomalies or interesting entries in plain English.
-2.  **Secrets Detection**: Perform a comprehensive scan for hardcoded secrets. For each potential secret found, describe its likely type, report the detected value, and provide a clear recommendation for remediation. Be diligent, as secrets can be disguised.
-3.  **Unsafe API Usage**: Scan the extracted firmware strings for usage of known insecure C functions (like strcpy, gets, sprintf) or weak cryptographic algorithms (MD5, RC4).
-4.  **CVE Lookup (Simulated)**: Based on identified components, list potential CVEs. For each CVE, provide its ID, a detailed description, a CVSS score (0.0-10.0), a 2-3 bullet point summary of the risk, and a brief, actionable remediation step (e.g., "Upgrade 'openssl' to version '1.1.1k' or later.").
-5.  **SBOM Generation**: Identify software packages, libraries, and applications to generate a Software Bill of Materials (SBOM).
+1.  **Deep Secret Detection**: Perform a comprehensive scan for hardcoded secrets. Pay special attention to username/password combinations, private keys, and API tokens. Be diligent, as secrets can be disguised.
+2.  **File System and Malware Analysis**: Identify noteworthy file paths. Scrutinize the firmware strings for keywords like 'upnp', 'ssh', 'root', 'shell'. When found, create a File System Insight and explain the security implications. Scan for signs of malware or suspicious backdoors (e.g., unusual script names, obfuscated code, connections to suspicious domains). If found, tag it with a 'threatType' and provide 'threatReasoning'.
+3.  **Bootlog Analysis**: Parse the bootlog to identify the kernel version, hardware identifiers, and detected kernel modules with versions.
+4.  **Unsafe API Usage**: Scan for usage of insecure C functions (strcpy, gets) or weak crypto (MD5, RC4).
+5.  **SBOM & CVE Lookup**: Generate an SBOM from identified components. Based on these, list potential CVEs with their ID, description, CVSS score, a 2-3 bullet point risk summary, and a brief remediation step.
 6.  **Firmware Type Classification**: Heuristically determine the device type, confidence score, and justification.
-7.  **File System Insights**: Identify noteworthy file paths relevant to security analysis and explain their significance.
-8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a single paragraph.
-9.  **Automated Remediation Plan**: Based on ALL findings, generate a prioritized, step-by-step remediation plan. Rank actions from most to least critical. Each step should be a clear, actionable instruction. For example: "1. Critical: Rotate the leaked AWS API key found in '/etc/config.json'.", "2. High: Patch CVE-2022-12345 by upgrading the 'openssl' package to version '1.1.1k'.", "3. Medium: Replace the use of 'strcpy' in the '/bin/login' binary with 'strncpy' to prevent buffer overflows."
+7.  **Potential Vulnerability Discovery (Zero-Day Analysis)**: Go beyond known CVEs. Act as a reverse engineer. Analyze the interplay between components, scripts, and configurations to uncover *potential new vulnerabilities*. For each finding, describe the logical flaw, its potential impact, and a suggested remediation.
+8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture.
+9.  **Automated Remediation Plan**: Based on ALL findings (CVEs, secrets, potential vulnerabilities), generate a prioritized, step-by-step remediation plan. Rank actions from most to least critical.
 
 Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,
