@@ -53,6 +53,11 @@ const FirmwareTypeSchema = z.object({
     reasoning: z.string().describe('Brief reasoning for the classification based on found files or strings.'),
 });
 
+const FileSystemInsightSchema = z.object({
+    path: z.string().describe('The full file path identified, e.g., "/etc/shadow".'),
+    description: z.string().describe('A brief explanation of why this file is noteworthy for security analysis.'),
+});
+
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
     firmwareType: FirmwareTypeSchema,
@@ -61,6 +66,7 @@ const AnalyzeFirmwareOutputSchema = z.object({
     secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found.'),
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
     sbom: z.array(SbomComponentSchema).describe('A list of software components identified in the firmware (Software Bill of Materials).'),
+    fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings.'),
 });
 export type AnalyzeFirmwareOutput = z.infer<typeof AnalyzeFirmwareOutputSchema>;
 
@@ -96,7 +102,8 @@ Please perform the following analysis based ONLY on the provided content:
 4.  **CVE Lookup (Simulated)**: Based on the identified kernel version and any other software components you can infer from the text, list potential CVEs. For each CVE, provide its ID, a brief description, a CVSS score (provide a realistic one between 0.0 and 10.0), and a 2-3 bullet point summary of the risk.
 5.  **SBOM Generation**: From the firmware strings and bootlog, identify software packages, libraries, and applications (like dropbear, busybox, dnsmasq, etc.). For each, list its name, version, and type (e.g., "OS Package", "Library", "Application"). This should resemble a Software Bill of Materials (SBOM).
 6.  **Firmware Type Classification**: Based on key binaries (e.g., \`httpd\`, \`udhcpd\`, \`camera_app\`) and configuration files/strings found in the provided text, heuristically determine the device type (e.g., "Router", "Camera", "IoT Sensor", "Printer", "Unknown"). Provide a confidence score between 0.0 and 1.0, and a brief justification for your classification.
-7.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
+7.  **File System Insights**: Scan the extracted strings for anything that looks like a file path (e.g., starting with '/'). Identify noteworthy files that are relevant to security analysis, such as configuration files, user credentials, or key binaries. For each one, provide the path and a brief description of its significance.
+8.  **Overall Summary**: Provide a high-level summary of the firmware's security posture in a paragraph.
 
 Your response must be a valid JSON object matching the requested schema. Do not make up information that cannot be inferred from the provided text.
 `,

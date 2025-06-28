@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -27,7 +27,7 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom } = analysis;
+  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length;
 
@@ -105,7 +105,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardContent>
       </Card>
       
-      <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'sbom', 'bootlog']} className="w-full space-y-4">
+      <Accordion type="multiple" defaultValue={['cves', 'secrets', 'unsafe-apis', 'sbom', 'bootlog', 'file-explorer']} className="w-full space-y-4">
         
         <Card>
           <AccordionItem value="cves" className="border-b-0">
@@ -227,6 +227,35 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                         </Table>
                     </Card>
                 ) : <p className="text-muted-foreground">No software components were identified to generate an SBOM.</p>}
+            </AccordionContent>
+          </AccordionItem>
+        </Card>
+
+        <Card>
+          <AccordionItem value="file-explorer" className="border-b-0">
+            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                <div className="flex items-center gap-3">
+                    <FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" />
+                    <span>File System Insights</span>
+                    <Badge variant="secondary">{fileSystemInsights.length}</Badge>
+                </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6">
+                 <div className="space-y-4">
+                    {fileSystemInsights && fileSystemInsights.length > 0 ? fileSystemInsights.map((file, i) => (
+                        <Card key={i} className="bg-muted/30">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base font-mono">
+                                    <FileCode className="h-4 w-4" />
+                                    {file.path}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">{file.description}</p>
+                            </CardContent>
+                        </Card>
+                    )) : <p className="text-muted-foreground">No specific file paths of interest were identified from the provided strings.</p>}
+                </div>
             </AccordionContent>
           </AccordionItem>
         </Card>
