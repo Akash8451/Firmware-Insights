@@ -26,6 +26,50 @@ function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
+const fileToText = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file);
+  });
+}
+
+const fileToArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+  });
+}
+
+const extractStrings = (buffer: ArrayBuffer, minLength = 4, maxLength = 100000): string => {
+  const view = new Uint8Array(buffer);
+  let result = '';
+  let currentString = '';
+  for (let i = 0; i < view.length; i++) {
+      if (result.length >= maxLength) {
+        break;
+      }
+      const charCode = view[i];
+      // Printable ASCII characters (32-126) plus newline, tab, and carriage return
+      if ((charCode >= 32 && charCode <= 126) || charCode === 10 || charCode === 9 || charCode === 13) {
+          currentString += String.fromCharCode(charCode);
+      } else {
+          if (currentString.length >= minLength) {
+              result += currentString + '\n';
+          }
+          currentString = '';
+      }
+  }
+  if (currentString.length >= minLength && result.length < maxLength) {
+      result += currentString;
+  }
+  return result.substring(0, maxLength);
+}
+
+
 export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (result: AnalyzeFirmwareOutput) => void }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -89,26 +133,23 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
         return;
     }
 
-    const fileToText = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsText(file);
-        });
-    }
-
     try {
-        const firmwareContent = binFile ? await fileToText(binFile) : undefined;
+        let firmwareContent: string | undefined;
+        if (binFile) {
+            const arrayBuffer = await fileToArrayBuffer(binFile);
+            firmwareContent = extractStrings(arrayBuffer);
+        }
+        
         const bootlogContent = txtFile ? await fileToText(txtFile) : undefined;
         
         const result = await analyzeFirmware({ firmwareContent, bootlogContent });
         onAnalysisComplete(result);
     } catch (error) {
         console.error("Analysis failed:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         toast({
             title: "Analysis Failed",
-            description: "Something went wrong during the analysis. Please try again.",
+            description: `Something went wrong during the analysis: ${errorMessage}`,
             variant: "destructive",
         });
     } finally {
