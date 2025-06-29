@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
+import { getNvdCvesForComponent } from '@/ai/tools/nvd';
 
 const AnalyzeFirmwareInputSchema = z.object({
   firmwareContent: z.string().describe('The extracted text strings from the .bin firmware file.'),
@@ -98,51 +99,97 @@ export async function analyzeFirmware(input: AnalyzeFirmwareInput): Promise<Anal
   return analyzeFirmwareFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'analyzeFirmwarePrompt',
-  input: {schema: AnalyzeFirmwareInputSchema},
-  output: {schema: AnalyzeFirmwareOutputSchema},
-  prompt: `You are an expert firmware security analysis tool. Your main task is to analyze the provided firmware strings and bootlog content to identify a wide range of security risks.
 
-Your response MUST be a valid JSON object that strictly adheres to the provided output schema.
+// Prompt 1: Initial analysis to get SBOM and device identity
+const identifyAndSbomPrompt = ai.definePrompt({
+    name: 'identifyAndSbomPrompt',
+    input: { schema: AnalyzeFirmwareInputSchema },
+    output: { schema: z.object({
+        firmwareIdentification: FirmwareIdentificationSchema,
+        bootlogAnalysis: BootlogAnalysisSchema,
+        sbom: z.array(SbomComponentSchema),
+    })},
+    prompt: `You are an expert firmware security analysis tool. Your task is to perform an initial analysis on the provided firmware strings and bootlog content.
+    
+    Based *only* on the provided \`firmwareContent\` and \`bootlogContent\`, perform the following analysis:
 
-**Analysis Instructions:**
+    1.  **Firmware Identification (Heuristic Analysis)**: Do not assume standard file paths exist. Instead, act as if you are running \`grep\` with flexible patterns across all provided text.
+        *   **Search Heuristics**: Look for keywords like "model", "version", "board", "firmware" and vendor names (e.g., "TP-LINK", "NETGEAR", "D-Link"). Search for version patterns like \`V[0-9]\`. Check for embedded metadata in HTML \`<title>\` tags or JavaScript variables within \`/web/\` or \`/www/\` paths.
+        *   **Synthesize & Score**: Based on all evidence found, identify the \`vendor\`, \`model\`, \`version\`, and \`deviceType\`.
+        *   **Confidence Score**: Assign a \`confidence\` score from 0.0 (total guess) to 1.0 (explicitly stated in a reliable file). A high score requires strong evidence (e.g., model found in \`/etc/product_info\`). A low score would be for a model inferred from a few strings in a generic binary.
+        *   **Reasoning**: Provide detailed \`reasoning\`, citing the source of each piece of evidence (e.g., "Vendor 'TP-Link' found in /web/login.html. Model 'TL-WR845N' found in string near 'board_name'.").
 
-Based *only* on the provided \`firmwareContent\` and \`bootlogContent\`, perform the following analysis:
+    2.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
+    
+    3.  **SBOM Generation**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings.
 
-1.  **Overall Summary**: Write a concise, high-level summary of the firmware's security posture.
+    Your response MUST be a valid JSON object that strictly adheres to the provided output schema. If a section is empty, return an empty array or object as appropriate.
+    
+    **Firmware Data:**
 
-2.  **Firmware Identification (Heuristic Analysis)**: Do not assume standard file paths exist. Instead, act as if you are running \`grep\` with flexible patterns across all provided text.
-    *   **Search Heuristics**: Look for keywords like "model", "version", "board", "firmware" and vendor names (e.g., "TP-LINK", "NETGEAR", "D-Link"). Search for version patterns like \`V[0-9]\`. Check for embedded metadata in HTML \`<title>\` tags or JavaScript variables within \`/web/\` or \`/www/\` paths.
-    *   **Synthesize & Score**: Based on all evidence found, identify the \`vendor\`, \`model\`, \`version\`, and \`deviceType\`.
-    *   **Confidence Score**: Assign a \`confidence\` score from 0.0 (total guess) to 1.0 (explicitly stated in a reliable file). A high score requires strong evidence (e.g., model found in \`/etc/product_info\`). A low score would be for a model inferred from a few strings in a generic binary.
-    *   **Reasoning**: Provide detailed \`reasoning\`, citing the source of each piece of evidence (e.g., "Vendor 'TP-Link' found in /web/login.html. Model 'TL-WR845N' found in string near 'board_name'.").
+    Bootlog contents:
+    {{{bootlogContent}}}
 
-3.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
-
-4.  **SBOM & Rigorous CVE Analysis**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings. Then, for every single component identified in the SBOM, perform a rigorous search for associated Common Vulnerabilities and Exposures (CVEs). For each CVE found, you **must** correlate it back to the component by filling in the \`componentName\` and \`componentVersion\` fields. Also include the CVE ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible. Be exhaustive in your search.
-
-5.  **Secrets**: Diligently scan for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`). For each secret, note its type, value, and a remediation recommendation.
-
-6.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4). For each, provide the function/algorithm name and explain why it's a risk.
-
-7.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications. If you suspect a file or pattern indicates malware or a backdoor, set the \`threatType\` and explain your reasoning.
-
-8.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact. For each potential vulnerability, provide a title, a detailed description of the logical flaw and its impact, and a suggested remediation.
-
-9.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings. Rank the steps from most to least critical.
-
-**IMPORTANT**: If you cannot find any items for a particular array field (e.g., no CVEs are found), you MUST return an empty array \`[]\` for that field. Do not omit the field from the JSON output. Do not make up information that cannot be inferred from the provided text.
-
-**Firmware Data:**
-
-Bootlog contents:
-{{{bootlogContent}}}
-
-Extracted strings from firmware file:
-{{{firmwareContent}}}
-`,
+    Extracted strings from firmware file:
+    {{{firmwareContent}}}
+    `,
 });
+
+// Prompt 2: Enrichment and final analysis
+const enrichmentPrompt = ai.definePrompt({
+    name: 'enrichmentPrompt',
+    input: { schema: z.object({
+        firmwareContent: z.string(),
+        bootlogContent: z.string().optional(),
+        firmwareIdentification: FirmwareIdentificationSchema,
+        bootlogAnalysis: BootlogAnalysisSchema,
+        sbom: z.array(SbomComponentSchema),
+        cvesFromApi: z.array(CveSchema)
+    })},
+    output: { schema: AnalyzeFirmwareOutputSchema },
+    prompt: `You are an expert firmware security analysis tool. You have been provided with an initial analysis of a firmware (device identity, SBOM, bootlog info) and a list of CVEs retrieved from the NVD database for the components in the SBOM.
+
+    Your main task is to **enrich this data and perform a deeper security analysis** to generate a final, comprehensive report.
+
+    Your response MUST be a valid JSON object that strictly adheres to the provided output schema.
+
+    **Analysis Instructions:**
+
+    1.  **Overall Summary**: Based on all the provided information (initial analysis, CVEs, file content), write a concise, high-level summary of the firmware's security posture.
+
+    2.  **Enrich CVE Data**: For each CVE provided in \`cvesFromApi\`, generate a concise 2-3 bullet point \`summary\` of the risk and a brief, actionable \`remediation\` step. The other fields (\`cveId\`, \`description\`, \`cvssScore\`, etc.) are already populated from the NVD API.
+
+    3.  **Secrets**: Diligently scan the raw \`firmwareContent\` for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`).
+
+    4.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4) from the raw \`firmwareContent\`.
+
+    5.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications from the raw \`firmwareContent\`. If you suspect a file or pattern indicates malware or a backdoor, set the \`threatType\` and explain your reasoning.
+
+    6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`.
+
+    7.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
+
+    **IMPORTANT**: You MUST return the \`firmwareIdentification\`, \`bootlogAnalysis\`, and \`sbom\` fields from the input directly in your output. For the \`cves\` field, use the enriched data you generated from \`cvesFromApi\`. If any array is empty, return \`[]\`.
+
+    **Input Data:**
+
+    **Initial Analysis:**
+    Firmware Identification: {{{json firmwareIdentification}}}
+    Bootlog Analysis: {{{json bootlogAnalysis}}}
+    SBOM: {{{json sbom}}}
+    
+    **CVEs from NVD API:**
+    {{{json cvesFromApi}}}
+
+    **Raw Firmware Data:**
+    Bootlog contents:
+    {{{bootlogContent}}}
+
+    Extracted strings from firmware file:
+    {{{firmwareContent}}}
+    `,
+});
+
 
 const analyzeFirmwareFlow = ai.defineFlow(
   {
@@ -150,11 +197,34 @@ const analyzeFirmwareFlow = ai.defineFlow(
     inputSchema: AnalyzeFirmwareInputSchema,
     outputSchema: AnalyzeFirmwareOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error("Failed to get analysis from AI.");
+  async (input) => {
+    // Step 1: Get initial analysis and SBOM from AI
+    const { output: initialAnalysis } = await identifyAndSbomPrompt(input);
+    if (!initialAnalysis) {
+        throw new Error("Failed to get initial analysis from AI.");
     }
-    return output;
+    
+    // Step 2: Concurrently fetch CVEs for all SBOM components using the NVD tool
+    const cvePromises = initialAnalysis.sbom.map(component => 
+        getNvdCvesForComponent({
+            componentName: component.name,
+            componentVersion: component.version
+        })
+    );
+    const cveResults = await Promise.all(cvePromises);
+    const allCvesFromApi = cveResults.flat();
+
+    // Step 3: Call the enrichment prompt with all the data
+    const { output: finalAnalysis } = await enrichmentPrompt({
+        ...input,
+        ...initialAnalysis,
+        cvesFromApi: allCvesFromApi
+    });
+    
+    if (!finalAnalysis) {
+        throw new Error("Failed to get final analysis from AI.");
+    }
+
+    return finalAnalysis;
   }
 );
