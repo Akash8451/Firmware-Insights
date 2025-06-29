@@ -115,7 +115,7 @@ const identifyAndSbomPrompt = ai.definePrompt({
 
     2.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
     
-    3.  **SBOM Generation**: Scour the entire \`firmwareContent\` for any mention of software components and their versions (e.g., "BusyBox 1.25.1", "OpenSSL 1.1.1k"). Pay close attention to common firmware components like BusyBox, U-Boot, OpenSSL, dropbear, dnsmasq, etc. Create a comprehensive Software Bill of Materials (SBOM) from these findings. Each entry must have a name, version, and type.
+    3.  **SBOM Generation**: Scour the entire \`firmwareContent\` for any mention of software components and their versions (e.g., "BusyBox 1.25.1", "OpenSSL 1.1.1k"). Pay close attention to common firmware components like BusyBox, U-Boot, OpenSSL, dropbear, dnsmasq, etc. Create a comprehensive Software Bill of Materials (SBOM) from these findings. Each entry must have a name, version, and type. If you identify a component but cannot find a version, do not include it.
 
     Your response MUST be a valid JSON object that strictly adheres to the provided output schema. If a section is empty, return an empty array or object as appropriate.
     
@@ -156,9 +156,9 @@ const enrichmentPrompt = ai.definePrompt({
 
     4.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4) from the raw \`firmwareContent\`.
 
-    5.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications from the raw \`firmwareContent\`. If you suspect a file or pattern indicates malware or a backdoor, set the \`threatType\` and explain your reasoning.
+    5.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications from the raw \`firmwareContent\`. If you suspect a file or pattern indicates malware or a backdoor (like Xiongmai XMeye), set the \`threatType\` to "Malware" or "Suspicious Pattern" and explain your reasoning in \`threatReasoning\`.
 
-    6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`.
+    6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`. For example, look for password hashes (strings starting with \`$1$\`, \`$5$\`, \`$6$\`), check for weak default configurations in identified configuration files, or identify suspicious custom services that might be backdoors. For each finding, create a \`PotentialVulnerability\` entry.
 
     7.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
 
@@ -233,3 +233,5 @@ const analyzeFirmwareFlow = ai.defineFlow(
     return finalAnalysis;
   }
 );
+
+    
