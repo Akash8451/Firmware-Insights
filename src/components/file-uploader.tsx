@@ -16,6 +16,8 @@ type UploadedFile = {
 };
 
 const acceptedFileTypes = [".bin", ".txt"];
+// Limit file size to 4MB to prevent browser crashes and API limits with huge files.
+const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024; 
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
@@ -76,16 +78,35 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
 
   const handleFileChange = (newFiles: FileList | null) => {
     if (newFiles) {
-      const filteredFiles = Array.from(newFiles).filter(file =>
-        acceptedFileTypes.some(type => file.name.endsWith(type))
-      );
+        const addedFiles: UploadedFile[] = [];
+        const rejectedFiles: string[] = [];
 
-      const newUploadedFiles: UploadedFile[] = filteredFiles.map(file => ({
-        id: crypto.randomUUID(),
-        file,
-      }));
+        Array.from(newFiles).forEach(file => {
+            const isAcceptedType = acceptedFileTypes.some(type => file.name.endsWith(type));
+            const isBinFile = file.name.endsWith('.bin');
+            
+            if (!isAcceptedType) {
+                rejectedFiles.push(`${file.name} (unsupported type)`);
+                return;
+            }
 
-      setFiles(prev => [...prev, ...newUploadedFiles]);
+            if (isBinFile && file.size > MAX_FILE_SIZE_BYTES) {
+                 rejectedFiles.push(`${file.name} (exceeds ${formatBytes(MAX_FILE_SIZE_BYTES)} limit)`);
+                 return;
+            }
+
+            addedFiles.push({ id: crypto.randomUUID(), file });
+        });
+        
+        if (rejectedFiles.length > 0) {
+            toast({
+                title: "Some files were not added",
+                description: `Rejected files: ${rejectedFiles.join(', ')}.`,
+                variant: "destructive",
+            });
+        }
+
+        setFiles(prev => [...prev, ...addedFiles]);
     }
   };
 
@@ -107,6 +128,10 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFileChange(e.target.files);
+    // Reset the input value to allow re-uploading the same file
+    if(e.target) {
+      e.target.value = '';
+    }
   };
 
   const removeFile = (id: string) => {
@@ -138,6 +163,16 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
         }
         
         const bootlogContent = txtFile ? await fileToText(txtFile) : undefined;
+
+        if (!firmwareContent && !bootlogContent) {
+            toast({
+                title: "No content to analyze",
+                description: "The uploaded files appear to be empty.",
+                variant: "destructive",
+            });
+            setIsAnalyzing(false);
+            return;
+        }
         
         const result = await analyzeFirmware({ firmwareContent, bootlogContent });
         onAnalysisComplete(result);
@@ -185,7 +220,7 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
           <p className="mt-4 text-center text-muted-foreground">
             <span className="font-semibold text-primary">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-muted-foreground">.bin and .txt files supported</p>
+          <p className="text-xs text-muted-foreground">.bin (max 4MB) and .txt files supported</p>
           <input
             ref={fileInputRef}
             type="file"
