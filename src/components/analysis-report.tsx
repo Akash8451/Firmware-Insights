@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2, Database } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2, Database, BarChart, Shield, Info, Code } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import type { RawInputData } from '@/app/page';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +15,7 @@ import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
   if (score >= 9.0) return 'destructive';
-  if (score >= 7.0) return 'destructive'; // No orange by default, use destructive for High
+  if (score >= 7.0) return 'destructive';
   if (score >= 4.0) return 'secondary';
   return 'outline';
 };
@@ -87,7 +87,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground font-headline">Analysis Report</h1>
-            <p className="text-muted-foreground">A summary of the security posture of your firmware.</p>
+            <p className="text-muted-foreground">A summary of the security posture for <span className="font-semibold text-foreground">{deviceName}</span>.</p>
         </div>
         <div className="flex items-center gap-2">
             <Button onClick={handleExportJson} variant="outline">
@@ -151,439 +151,267 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Overall Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">{overallSummary}</p>
-          {firmwareIdentification.reasoning && (
-             <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50">
-                <span className="font-semibold text-foreground">Identification Rationale:</span> {firmwareIdentification.reasoning}
-              </p>
-            )}
-        </CardContent>
-      </Card>
-      
-      {remediationPlan && remediationPlan.length > 0 && (
-        <Card className="border-primary/50">
-          <CardHeader className="flex flex-row items-center gap-3 space-y-0">
-            <ShieldAlert className="h-6 w-6 text-primary" />
-            <div>
-              <CardTitle>Actionable Remediation Plan</CardTitle>
-              <CardDescription>A prioritized list of steps to improve security.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3 list-decimal list-inside">
-              {remediationPlan.map((step) => (
-                <li key={step.priority} className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{step.description}</span>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>CVE Severity Distribution</CardTitle>
-            <CardDescription>Breakdown of vulnerabilities by CVSS score.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            {cveSeverityData.length > 0 ? (
-              <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
-                <PieChart>
-                  <Tooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Pie
-                    data={cveSeverityData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    strokeWidth={5}
-                  >
-                    {cveSeverityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                No CVE data to display
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Issue Type Breakdown</CardTitle>
-            <CardDescription>Distribution of all identified security issues.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            {issueBreakdownData.length > 0 ? (
-              <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
-                <PieChart>
-                  <Tooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Pie
-                    data={issueBreakdownData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    strokeWidth={5}
-                  >
-                    {issueBreakdownData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                 No issue data to display
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Accordion type="multiple" defaultValue={['potential-vulns', 'vulnerable-components']} className="w-full space-y-4">
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <TabsTrigger value="overview"><BarChart className="mr-2" />Overview</TabsTrigger>
+            <TabsTrigger value="vulnerabilities"><ShieldAlert className="mr-2" />Vulnerabilities</TabsTrigger>
+            <TabsTrigger value="system-details"><Info className="mr-2" />System Details</TabsTrigger>
+            <TabsTrigger value="raw-data"><Code className="mr-2" />Raw Data</TabsTrigger>
+        </TabsList>
         
-        {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
-            <Card>
-                <AccordionItem value="potential-vulns" className="border-b-0 border-destructive/50">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                        <div className="flex items-center gap-3">
-                            <ShieldAlert className="h-6 w-6 text-destructive" />
-                            <span>Potential Novel Vulnerabilities</span>
-                            <Badge variant="destructive">{potentialVulnerabilities.length}</Badge>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                        <div className="space-y-4">
-                            {potentialVulnerabilities.map((vuln, i) => (
-                                <Card key={i} className="bg-muted/30">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">{vuln.title}</CardTitle>
-                                        {vuln.filePath && <CardDescription className="pt-1 font-mono text-xs">{vuln.filePath}</CardDescription>}
-                                    </CardHeader>
-                                    <CardContent>
-                                        <h4 className="font-semibold mb-2 text-sm">Description:</h4>
-                                        <p className="text-sm text-muted-foreground">{vuln.description}</p>
-                                        <h4 className="font-semibold mt-4 mb-2 text-sm">Suggested Remediation:</h4>
-                                        <p className="text-sm text-muted-foreground">{vuln.remediation}</p>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            </Card>
-        )}
-        
-        {vulnerableComponents.length > 0 && (
-          <Card>
-            <AccordionItem value="vulnerable-components" className="border-b-0">
-              <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                  <div className="flex items-center gap-3">
-                      <AlertCircle className="h-6 w-6 text-primary" />
-                      <span>Vulnerable Components</span>
-                      <Badge variant="default">{vulnerableComponents.length}</Badge>
-                  </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 space-y-4">
-                  {vulnerableComponents.map((component) => (
-                    <Card key={`${component.name}-${component.version}`} className="bg-muted/30">
-                      <CardHeader>
-                        <CardTitle className="text-base">{component.name} <span className="font-normal text-muted-foreground">{component.version}</span></CardTitle>
-                        <CardDescription>Found {component.cves.length} CVE(s) for this component.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {component.cves.map(cve => (
-                          <div key={cve.cveId} className="p-4 border rounded-lg bg-background">
-                            <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-bold text-foreground">{cve.cveId}</h4>
-                                <Badge variant={getBadgeVariantForCvss(cve.cvssScore)}>CVSS: {cve.cvssScore.toFixed(1)}</Badge>
-                            </div>
-                            <Tabs defaultValue="enhanced" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger value="enhanced">AI-Enhanced Analysis</TabsTrigger>
-                                    <TabsTrigger value="raw">Raw API Data</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="enhanced" className="mt-4 text-sm">
-                                    <h5 className="font-semibold mb-2">Summary:</h5>
-                                    <div className="pl-4 border-l-2 border-primary/50 space-y-1 text-muted-foreground">
-                                    {(cve.summary || '').split('\\n').map((line, i) => (
-                                        line.trim() && <p key={i}>{line.replace(/^- /, '• ')}</p>
-                                    ))}
-                                    </div>
-                                    {cve.remediation && (
-                                    <>
-                                        <h5 className="font-semibold mt-4 mb-2">Remediation:</h5>
-                                        <p className="text-muted-foreground">{cve.remediation}</p>
-                                    </>
-                                    )}
-                                </TabsContent>
-                                <TabsContent value="raw" className="mt-4 text-sm text-muted-foreground">
-                                    <p>{cve.description}</p>
-                                </TabsContent>
-                            </Tabs>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  ))}
-              </AccordionContent>
-            </AccordionItem>
-          </Card>
-        )}
-
-        <Card>
-          <AccordionItem value="secrets" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <KeyRound className="h-6 w-6 text-accent" />
-                    <span>Hardcoded Secrets</span>
-                    <Badge variant="secondary" className="bg-accent text-accent-foreground">{secrets.length}</Badge>
-                </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-                 <div className="space-y-4">
-                    {secrets.length > 0 ? secrets.map((secret, i) => (
-                        <Card key={i} className="bg-muted/30">
-                            <CardHeader>
-                                <CardTitle className="text-base">{secret.type}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <p className="text-sm text-muted-foreground font-mono break-all bg-background p-2 rounded-md">{secret.value}</p>
-                                <p className="text-sm"><span className="font-semibold">Recommendation:</span> {secret.recommendation}</p>
-                            </CardContent>
-                        </Card>
-                    )) : <p className="text-muted-foreground">No hardcoded secrets were detected.</p>}
-                </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
-
-        <Card>
-          <AccordionItem value="unsafe-apis" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <ShieldOff className="h-6 w-6 text-primary" />
-                    <span>Unsafe API Usage</span>
-                    <Badge>{unsafeApis.length}</Badge>
-                </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-                 <div className="space-y-4">
-                    {unsafeApis.length > 0 ? unsafeApis.map((api, i) => (
-                        <Card key={i} className="bg-muted/30">
-                            <CardHeader>
-                                <CardTitle className="text-base font-mono">{api.functionName}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground">{api.reason}</p>
-                            </CardContent>
-                        </Card>
-                    )) : <p className="text-muted-foreground">No strings indicating unsafe API usage were found.</p>}
-                </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
-
-        <Card>
-          <AccordionItem value="sbom" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" />
-                    <span>Software Bill of Materials (SBOM)</span>
-                    <Badge variant="secondary">{sbomAnalysis.length}</Badge>
-                </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-                {sbomAnalysis && sbomAnalysis.length > 0 ? (
+        <TabsContent value="overview" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3">
                     <Card>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Version</TableHead>
-                            <TableHead>Type</TableHead>
-                             <TableHead className="text-center">CVEs</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sbomAnalysis.map((component, i) => (
-                            <TableRow key={i}>
-                                <TableCell className="font-medium">{component.name}</TableCell>
-                                <TableCell>{component.version}</TableCell>
-                                <TableCell>{component.type}</TableCell>
-                                <TableCell className="text-center">
-                                    {component.cves.length > 0 
-                                      ? <Badge variant="destructive">{component.cves.length}</Badge> 
-                                      : <Badge variant="outline">0</Badge>
-                                    }
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
+                        <CardHeader>
+                          <CardTitle>Overall Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-muted-foreground">{overallSummary}</p>
+                          {firmwareIdentification.reasoning && (
+                             <p className="text-sm text-muted-foreground mt-4 pt-4 border-t">
+                                <span className="font-semibold text-foreground">Identification Rationale:</span> {firmwareIdentification.reasoning}
+                              </p>
+                            )}
+                        </CardContent>
                     </Card>
-                ) : <p className="text-muted-foreground">No software components were identified to generate an SBOM.</p>}
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
-        
-        {cleanComponents.length > 0 && (
-          <Card>
-            <AccordionItem value="clean-components" className="border-b-0">
-              <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                  <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
-                      <span>Scanned & Clean Components</span>
-                      <Badge variant="secondary">{cleanComponents.length}</Badge>
-                  </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                 <p className="text-muted-foreground mb-4">These components were scanned against the NVD database and no associated CVEs were found for the detected versions.</p>
-                 <Card>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Version</TableHead>
-                                <TableHead>Type</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {cleanComponents.map((component, i) => (
-                            <TableRow key={i}>
-                                <TableCell className="font-medium">{component.name}</TableCell>
-                                <TableCell>{component.version}</TableCell>
-                                <TableCell>{component.type}</TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                 </Card>
-              </AccordionContent>
-            </AccordionItem>
-          </Card>
-        )}
-
-        <Card>
-          <AccordionItem value="file-explorer" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" />
-                    <span>File System & Malware Insights</span>
-                    <Badge variant="secondary">{fileSystemInsights.length}</Badge>
                 </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-                 <div className="space-y-4">
-                    {fileSystemInsights && fileSystemInsights.length > 0 ? fileSystemInsights.map((file, i) => (
-                        <Card key={i} className="bg-muted/30">
-                            <CardHeader>
-                                <CardTitle className="flex items-center justify-between gap-2 text-base font-mono">
-                                    <div className="flex items-center gap-2">
-                                        <FileCode className="h-4 w-4 shrink-0" />
-                                        <span className="truncate">{file.path}</span>
-                                    </div>
-                                    {file.threatType && <Badge variant="destructive">{file.threatType}</Badge>}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <p className="text-sm text-muted-foreground">{file.description}</p>
-                                {file.threatReasoning && (
-                                    <div className="mt-2 pt-2 border-t border-border/50">
-                                        <p className="text-sm text-destructive"><span className="font-semibold">Threat Rationale:</span> {file.threatReasoning}</p>
-                                    </div>
-                                )}
-                            </CardContent>
+                <div className="lg:col-span-2">
+                    {remediationPlan && remediationPlan.length > 0 && (
+                        <Card className="border-primary/50 h-full">
+                          <CardHeader className="flex flex-row items-center gap-3 space-y-0">
+                            <Shield className="h-6 w-6 text-primary" />
+                            <div>
+                              <CardTitle>Remediation Plan</CardTitle>
+                              <CardDescription>Prioritized security steps.</CardDescription>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <ol className="space-y-3 list-decimal list-inside">
+                              {remediationPlan.slice(0, 5).map((step) => ( // Show top 5
+                                <li key={step.priority} className="text-muted-foreground text-sm">
+                                  <span className="font-medium text-foreground">{step.description}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </CardContent>
                         </Card>
-                    )) : <p className="text-muted-foreground">No specific file paths of interest were identified from the provided strings.</p>}
+                      )}
                 </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>CVE Severity Distribution</CardTitle>
+                    <CardDescription>Breakdown of vulnerabilities by CVSS score.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex items-center justify-center">
+                    {cveSeverityData.length > 0 ? (
+                      <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
+                        <PieChart>
+                          <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                          <Pie data={cveSeverityData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                            {cveSeverityData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} />))}
+                          </Pie>
+                          <ChartLegend content={<ChartLegendContent />} />
+                        </PieChart>
+                      </ChartContainer>
+                    ) : ( <div className="flex items-center justify-center h-[250px] text-muted-foreground">No CVE data to display</div> )}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Issue Type Breakdown</CardTitle>
+                    <CardDescription>Distribution of all identified security issues.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex items-center justify-center">
+                    {issueBreakdownData.length > 0 ? (
+                      <ChartContainer config={{}} className="mx-auto aspect-square h-[250px]">
+                        <PieChart>
+                          <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                          <Pie data={issueBreakdownData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                            {issueBreakdownData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} />))}
+                          </Pie>
+                          <ChartLegend content={<ChartLegendContent />} />
+                        </PieChart>
+                      </ChartContainer>
+                    ) : ( <div className="flex items-center justify-center h-[250px] text-muted-foreground">No issue data to display</div> )}
+                  </CardContent>
+                </Card>
+            </div>
+        </TabsContent>
 
-        <Card>
-          <AccordionItem value="bootlog" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <FileText className="h-6 w-6 text-muted-foreground" />
-                    <span>Bootlog Analysis</span>
-                </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6 space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-1">Detected Hardware</h4>
-                  {bootlogAnalysis.hardware.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {bootlogAnalysis.hardware.map((hw, i) => <Badge key={i} variant="outline">{hw}</Badge>)}
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">No specific hardware detected.</p>}
-                </div>
-                 <div>
-                  <h4 className="font-semibold mb-1">Detected Modules/Drivers</h4>
-                  {bootlogAnalysis.modules && bootlogAnalysis.modules.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {bootlogAnalysis.modules.map((mod, i) => <Badge key={i} variant="secondary">{mod}</Badge>)}
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">No modules or drivers detected.</p>}
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-1">Analysis Summary</h4>
-                  <p className="text-sm text-muted-foreground">{bootlogAnalysis.summary}</p>
-                </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
-
-        <Card>
-            <AccordionItem value="raw-data" className="border-b-0">
-                <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                    <div className="flex items-center gap-3">
-                        <Database className="h-6 w-6 text-muted-foreground" />
-                        <span>Raw Input Data</span>
-                    </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6 space-y-4">
-                    {rawData?.firmwareContent && (
-                        <div>
-                            <h4 className="font-semibold mb-2">Extracted Firmware Strings (Simulated binwalk)</h4>
-                            <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
-                                <pre><code>{rawData.firmwareContent}</code></pre>
+        <TabsContent value="vulnerabilities" className="mt-6">
+            <Accordion type="multiple" defaultValue={['potential-vulns', 'vulnerable-components']} className="w-full space-y-4">
+                {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
+                    <Card>
+                        <AccordionItem value="potential-vulns" className="border-b-0 border-destructive/50">
+                            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                                <div className="flex items-center gap-3">
+                                    <ShieldAlert className="h-6 w-6 text-destructive" />
+                                    <span>Potential Novel Vulnerabilities</span>
+                                    <Badge variant="destructive">{potentialVulnerabilities.length}</Badge>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6 space-y-4">
+                                {potentialVulnerabilities.map((vuln, i) => (
+                                    <Card key={i} className="bg-muted/30">
+                                        <CardHeader><CardTitle className="text-base">{vuln.title}</CardTitle>{vuln.filePath && <CardDescription className="pt-1 font-mono text-xs">{vuln.filePath}</CardDescription>}</CardHeader>
+                                        <CardContent>
+                                            <h4 className="font-semibold mb-2 text-sm">Description:</h4><p className="text-sm text-muted-foreground">{vuln.description}</p>
+                                            <h4 className="font-semibold mt-4 mb-2 text-sm">Suggested Remediation:</h4><p className="text-sm text-muted-foreground">{vuln.remediation}</p>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                )}
+                {vulnerableComponents.length > 0 && (
+                  <Card>
+                    <AccordionItem value="vulnerable-components" className="border-b-0">
+                      <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                          <div className="flex items-center gap-3"><AlertCircle className="h-6 w-6 text-primary" /><span>Vulnerable Components</span><Badge variant="default">{vulnerableComponents.length}</Badge></div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6 space-y-4">
+                          {vulnerableComponents.map((component) => (
+                            <Card key={`${component.name}-${component.version}`} className="bg-muted/30">
+                              <CardHeader><CardTitle className="text-base">{component.name} <span className="font-normal text-muted-foreground">{component.version}</span></CardTitle><CardDescription>Found {component.cves.length} CVE(s) for this component.</CardDescription></CardHeader>
+                              <CardContent className="space-y-4">
+                                {component.cves.map(cve => (
+                                  <div key={cve.cveId} className="p-4 border rounded-lg bg-background">
+                                    <div className="flex justify-between items-start mb-2"><h4 className="font-bold text-foreground">{cve.cveId}</h4><Badge variant={getBadgeVariantForCvss(cve.cvssScore)}>CVSS: {cve.cvssScore.toFixed(1)}</Badge></div>
+                                    <Tabs defaultValue="enhanced" className="w-full">
+                                        <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="enhanced">AI-Enhanced Analysis</TabsTrigger><TabsTrigger value="raw">Raw API Data</TabsTrigger></TabsList>
+                                        <TabsContent value="enhanced" className="mt-4 text-sm">
+                                            <h5 className="font-semibold mb-2">Summary:</h5>
+                                            <div className="pl-4 border-l-2 border-primary/50 space-y-1 text-muted-foreground">{(cve.summary || '').split('\\n').map((line, i) => ( line.trim() && <p key={i}>{line.replace(/^- /, '• ')}</p> ))}</div>
+                                            {cve.remediation && (<> <h5 className="font-semibold mt-4 mb-2">Remediation:</h5><p className="text-muted-foreground">{cve.remediation}</p> </>)}
+                                        </TabsContent>
+                                        <TabsContent value="raw" className="mt-4 text-sm text-muted-foreground"><p>{cve.description}</p></TabsContent>
+                                    </Tabs>
+                                  </div>
+                                ))}
+                              </CardContent>
                             </Card>
-                        </div>
-                    )}
-                    {rawData?.bootlogContent && (
-                        <div>
-                            <h4 className="font-semibold mb-2">Bootlog Content</h4>
-                            <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
-                                <pre><code>{rawData.bootlogContent}</code></pre>
+                          ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Card>
+                )}
+                <Card>
+                  <AccordionItem value="secrets" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><KeyRound className="h-6 w-6 text-accent" /><span>Hardcoded Secrets</span><Badge variant="secondary" className="bg-accent text-accent-foreground">{secrets.length}</Badge></div></AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                        {secrets.length > 0 ? secrets.map((secret, i) => (
+                            <Card key={i} className="bg-muted/30">
+                                <CardHeader><CardTitle className="text-base">{secret.type}</CardTitle></CardHeader>
+                                <CardContent className="space-y-2"><p className="text-sm text-muted-foreground font-mono break-all bg-background p-2 rounded-md">{secret.value}</p><p className="text-sm"><span className="font-semibold">Recommendation:</span> {secret.recommendation}</p></CardContent>
                             </Card>
-                        </div>
-                    )}
-                    {!rawData?.firmwareContent && !rawData?.bootlogContent && (
-                        <p className="text-muted-foreground">No raw data to display.</p>
-                    )}
-                </AccordionContent>
-            </AccordionItem>
-        </Card>
+                        )) : <p className="text-muted-foreground">No hardcoded secrets were detected.</p>}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+                <Card>
+                  <AccordionItem value="unsafe-apis" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><ShieldOff className="h-6 w-6 text-primary" /><span>Unsafe API Usage</span><Badge>{unsafeApis.length}</Badge></div></AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                        {unsafeApis.length > 0 ? unsafeApis.map((api, i) => (
+                            <Card key={i} className="bg-muted/30">
+                                <CardHeader><CardTitle className="text-base font-mono">{api.functionName}</CardTitle></CardHeader>
+                                <CardContent><p className="text-sm text-muted-foreground">{api.reason}</p></CardContent>
+                            </Card>
+                        )) : <p className="text-muted-foreground">No strings indicating unsafe API usage were found.</p>}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+            </Accordion>
+        </TabsContent>
 
-      </Accordion>
+        <TabsContent value="system-details" className="mt-6">
+            <Accordion type="multiple" defaultValue={['sbom']} className="w-full space-y-4">
+                <Card>
+                  <AccordionItem value="sbom" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" /><span>Software Bill of Materials (SBOM)</span><Badge variant="secondary">{sbomAnalysis.length}</Badge></div></AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                        {sbomAnalysis && sbomAnalysis.length > 0 ? (
+                            <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead><TableHead className="text-center">CVEs</TableHead></TableRow></TableHeader>
+                                <TableBody>{sbomAnalysis.map((component, i) => ( <TableRow key={i}><TableCell className="font-medium">{component.name}</TableCell><TableCell>{component.version}</TableCell><TableCell>{component.type}</TableCell><TableCell className="text-center">{component.cves.length > 0 ? <Badge variant="destructive">{component.cves.length}</Badge> : <Badge variant="outline">0</Badge>}</TableCell></TableRow>))}
+                                </TableBody></Table></Card>
+                        ) : <p className="text-muted-foreground">No software components were identified to generate an SBOM.</p>}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+                {cleanComponents.length > 0 && (
+                  <Card>
+                    <AccordionItem value="clean-components" className="border-b-0">
+                      <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><CheckCircle2 className="h-6 w-6 text-green-600" /><span>Scanned & Clean Components</span><Badge variant="secondary">{cleanComponents.length}</Badge></div></AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6">
+                         <p className="text-muted-foreground mb-4">These components were scanned against the NVD database and no associated CVEs were found for the detected versions.</p>
+                         <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead></TableRow></TableHeader><TableBody>{cleanComponents.map((component, i) => ( <TableRow key={i}><TableCell className="font-medium">{component.name}</TableCell><TableCell>{component.version}</TableCell><TableCell>{component.type}</TableCell></TableRow>))}</TableBody></Table></Card>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Card>
+                )}
+                <Card>
+                  <AccordionItem value="file-explorer" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" /><span>File System & Malware Insights</span><Badge variant="secondary">{fileSystemInsights.length}</Badge></div></AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                        {fileSystemInsights && fileSystemInsights.length > 0 ? fileSystemInsights.map((file, i) => (
+                            <Card key={i} className="bg-muted/30">
+                                <CardHeader><CardTitle className="flex items-center justify-between gap-2 text-base font-mono"><div className="flex items-center gap-2"><FileCode className="h-4 w-4 shrink-0" /><span className="truncate">{file.path}</span></div>{file.threatType && <Badge variant="destructive">{file.threatType}</Badge>}</CardTitle></CardHeader>
+                                <CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{file.description}</p>{file.threatReasoning && (<div className="mt-2 pt-2 border-t border-border/50"><p className="text-sm text-destructive"><span className="font-semibold">Threat Rationale:</span> {file.threatReasoning}</p></div> )}</CardContent>
+                            </Card>
+                        )) : <p className="text-muted-foreground">No specific file paths of interest were identified from the provided strings.</p>}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+                <Card>
+                  <AccordionItem value="bootlog" className="border-b-0">
+                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><FileText className="h-6 w-6 text-muted-foreground" /><span>Bootlog Analysis</span></div></AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                        <div><h4 className="font-semibold mb-1">Detected Hardware</h4>{bootlogAnalysis.hardware.length > 0 ? ( <div className="flex flex-wrap gap-2">{bootlogAnalysis.hardware.map((hw, i) => <Badge key={i} variant="outline">{hw}</Badge>)}</div> ) : <p className="text-sm text-muted-foreground">No specific hardware detected.</p>}</div>
+                         <div><h4 className="font-semibold mb-1">Detected Modules/Drivers</h4>{bootlogAnalysis.modules && bootlogAnalysis.modules.length > 0 ? ( <div className="flex flex-wrap gap-2">{bootlogAnalysis.modules.map((mod, i) => <Badge key={i} variant="secondary">{mod}</Badge>)}</div> ) : <p className="text-sm text-muted-foreground">No modules or drivers detected.</p>}</div>
+                        <div><h4 className="font-semibold mb-1">Analysis Summary</h4><p className="text-sm text-muted-foreground">{bootlogAnalysis.summary}</p></div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+            </Accordion>
+        </TabsContent>
+        
+        <TabsContent value="raw-data" className="mt-6 space-y-4">
+            {rawData?.firmwareContent && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Extracted Firmware Strings</CardTitle>
+                        <CardDescription>Simulated output from `strings` command on the firmware binary.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                            <pre><code>{rawData.firmwareContent}</code></pre>
+                        </Card>
+                    </CardContent>
+                </Card>
+            )}
+            {rawData?.bootlogContent && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Bootlog Content</CardTitle>
+                        <CardDescription>Full content of the provided bootlog file.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                            <pre><code>{rawData.bootlogContent}</code></pre>
+                        </Card>
+                    </CardContent>
+                </Card>
+            )}
+            {!rawData?.firmwareContent && !rawData?.bootlogContent && (
+                <p className="text-muted-foreground">No raw data to display.</p>
+            )}
+        </TabsContent>
+
+      </Tabs>
     </div>
   );
 }
