@@ -6,8 +6,14 @@ import { FileUploader } from '@/components/file-uploader';
 import { AnalysisReport } from '@/components/analysis-report';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 
+export type RawInputData = {
+  firmwareContent?: string;
+  bootlogContent?: string;
+}
+
 export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeFirmwareOutput | null>(null);
+  const [rawInputData, setRawInputData] = useState<RawInputData | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
@@ -24,13 +30,24 @@ export default function Home() {
     "Bootlog Parsing",
   ];
 
+  const handleAnalysisComplete = (result: AnalyzeFirmwareOutput, rawData: RawInputData) => {
+    setAnalysisResult(result);
+    setRawInputData(rawData);
+  };
+
+  const handleReset = () => {
+    setAnalysisResult(null);
+    setRawInputData(null);
+  };
+
   if (analysisResult) {
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-background text-foreground font-body p-4 sm:p-8">
         <div className="w-full max-w-5xl">
           <AnalysisReport 
             analysis={analysisResult} 
-            onReset={() => setAnalysisResult(null)} 
+            rawData={rawInputData}
+            onReset={handleReset} 
           />
         </div>
       </div>
@@ -75,7 +92,7 @@ export default function Home() {
             </div>
 
             <main>
-                <FileUploader onAnalysisComplete={setAnalysisResult} />
+                <FileUploader onAnalysisComplete={handleAnalysisComplete} />
             </main>
 
             <footer className="mt-12 text-sm text-muted-foreground">

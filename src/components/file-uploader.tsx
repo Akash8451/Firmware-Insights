@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { analyzeFirmware, type AnalyzeFirmwareOutput } from "@/ai/flows/analyze-firmware";
+import type { RawInputData } from "@/app/page";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -69,7 +70,7 @@ const extractStrings = (buffer: ArrayBuffer, minLength = 4): string => {
 }
 
 
-export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (result: AnalyzeFirmwareOutput) => void }) {
+export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (result: AnalyzeFirmwareOutput, rawData: RawInputData) => void }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -175,7 +176,7 @@ export function FileUploader({ onAnalysisComplete }: { onAnalysisComplete: (resu
         }
         
         const result = await analyzeFirmware({ firmwareContent, bootlogContent });
-        onAnalysisComplete(result);
+        onAnalysisComplete(result, { firmwareContent, bootlogContent });
     } catch (error) {
         console.error("Analysis failed:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";

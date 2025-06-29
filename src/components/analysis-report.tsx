@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2, Database } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
+import type { RawInputData } from '@/app/page';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -35,7 +35,7 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 };
 
 
-export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
+export function AnalysisReport({ analysis, rawData, onReset }: { analysis: AnalyzeFirmwareOutput, rawData: RawInputData | null, onReset: () => void }) {
   const { overallSummary, firmwareIdentification, bootlogAnalysis, secrets, unsafeApis, sbomAnalysis, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
 
   const allCves = React.useMemo(() => sbomAnalysis.flatMap(comp => comp.cves), [sbomAnalysis]);
@@ -210,7 +210,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Legend content={<ChartLegendContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
               </ChartContainer>
             ) : (
@@ -244,7 +244,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Legend content={<ChartLegendContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
               </ChartContainer>
             ) : (
@@ -322,7 +322,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                                 <TabsContent value="enhanced" className="mt-4 text-sm">
                                     <h5 className="font-semibold mb-2">Summary:</h5>
                                     <div className="pl-4 border-l-2 border-primary/50 space-y-1 text-muted-foreground">
-                                    {(cve.summary || '').split('\n').map((line, i) => (
+                                    {(cve.summary || '').split('\\n').map((line, i) => (
                                         line.trim() && <p key={i}>{line.replace(/^- /, '• ')}</p>
                                     ))}
                                     </div>
@@ -549,9 +549,40 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
             </AccordionContent>
           </AccordionItem>
         </Card>
+
+        <Card>
+            <AccordionItem value="raw-data" className="border-b-0">
+                <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                    <div className="flex items-center gap-3">
+                        <Database className="h-6 w-6 text-muted-foreground" />
+                        <span>Raw Input Data</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-6 space-y-4">
+                    {rawData?.firmwareContent && (
+                        <div>
+                            <h4 className="font-semibold mb-2">Extracted Firmware Strings (Simulated binwalk)</h4>
+                            <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                                <pre><code>{rawData.firmwareContent}</code></pre>
+                            </Card>
+                        </div>
+                    )}
+                    {rawData?.bootlogContent && (
+                        <div>
+                            <h4 className="font-semibold mb-2">Bootlog Content</h4>
+                            <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                                <pre><code>{rawData.bootlogContent}</code></pre>
+                            </Card>
+                        </div>
+                    )}
+                    {!rawData?.firmwareContent && !rawData?.bootlogContent && (
+                        <p className="text-muted-foreground">No raw data to display.</p>
+                    )}
+                </AccordionContent>
+            </AccordionItem>
+        </Card>
+
       </Accordion>
     </div>
   );
 }
-
-    
