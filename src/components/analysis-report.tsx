@@ -110,7 +110,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Identified Device</CardTitle>
+                <CardTitle className="text-sm font-medium capitalize">{firmwareIdentification.deviceType || "Identified Device"}</CardTitle>
                 <DeviceTypeIcon type={firmwareIdentification.deviceType} />
             </CardHeader>
             <CardContent>
