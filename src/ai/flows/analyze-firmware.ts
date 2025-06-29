@@ -13,7 +13,7 @@ import { CveSchema } from '@/ai/schemas';
 import { getNvdCvesForComponent } from '@/ai/tools/nvd';
 
 const AnalyzeFirmwareInputSchema = z.object({
-  firmwareContent: z.string().describe('The extracted text strings from the .bin firmware file.'),
+  firmwareContent: z.string().optional().describe('The extracted text strings from the .bin firmware file.'),
   bootlogContent: z.string().optional().describe('The content of the bootlog.txt file.'),
 });
 export type AnalyzeFirmwareInput = z.infer<typeof AnalyzeFirmwareInputSchema>;
@@ -141,7 +141,7 @@ const identifyAndSbomPrompt = ai.definePrompt({
 const enrichmentPrompt = ai.definePrompt({
     name: 'enrichmentPrompt',
     input: { schema: z.object({
-        firmwareContent: z.string(),
+        firmwareContent: z.string().optional(),
         bootlogContent: z.string().optional(),
         firmwareIdentification: FirmwareIdentificationSchema,
         bootlogAnalysis: BootlogAnalysisSchema,
