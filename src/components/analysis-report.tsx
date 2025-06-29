@@ -10,6 +10,7 @@ import type { RawInputData } from '@/app/page';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 
 const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
