@@ -33,11 +33,11 @@ Firmware Insights is a web-based tool designed to perform in-depth security anal
 
 1.  Clone the repository:
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/Akash8451/Firmware-Insights
     ```
 2.  Navigate to the project directory:
     ```bash
-    cd <project-directory>
+    cd Firmware-Insights
     ```
 3.  Install the dependencies:
     ```bash
@@ -52,7 +52,7 @@ To start the development server, run:
 npm run dev
 ```
 
-Open [http://localhost:9002](http://localhost:9002) with your browser to see the result.
+Open the generated localhost link with your browser to see the result.
 
 ### Environment Variables
 
