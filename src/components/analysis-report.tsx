@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2, Database, BarChart, Shield, Info, Code } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2, BarChart, Shield, Info, Code, Lock, ScrollText } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import type { RawInputData } from '@/app/page';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,9 +35,18 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
     return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
 };
 
+const OrganizedContentIcon = ({ type }: { type: string }) => {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('html') || lowerType.includes('script') || lowerType.includes('json')) return <FileCode className="h-5 w-5 text-primary shrink-0" />;
+    if (lowerType.includes('cert')) return <Lock className="h-5 w-5 text-primary shrink-0" />;
+    if (lowerType.includes('config')) return <ListTree className="h-5 w-5 text-primary shrink-0" />;
+    if (lowerType.includes('log')) return <ScrollText className="h-5 w-5 text-primary shrink-0" />;
+    return <FileText className="h-5 w-5 text-primary shrink-0" />;
+};
+
 
 export function AnalysisReport({ analysis, rawData, onReset }: { analysis: AnalyzeFirmwareOutput, rawData: RawInputData | null, onReset: () => void }) {
-  const { overallSummary, firmwareIdentification, bootlogAnalysis, secrets, unsafeApis, sbomAnalysis, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
+  const { overallSummary, firmwareIdentification, bootlogAnalysis, secrets, unsafeApis, sbomAnalysis, fileSystemInsights, remediationPlan, potentialVulnerabilities, organizedContents } = analysis;
 
   const allCves = React.useMemo(() => sbomAnalysis.flatMap(comp => comp.cves), [sbomAnalysis]);
   const vulnerableComponents = React.useMemo(() => sbomAnalysis.filter(c => c.cves.length > 0), [sbomAnalysis]);
@@ -156,7 +165,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
             <TabsTrigger value="overview"><BarChart className="mr-2" />Overview</TabsTrigger>
             <TabsTrigger value="vulnerabilities"><ShieldAlert className="mr-2" />Vulnerabilities</TabsTrigger>
             <TabsTrigger value="system-details"><Info className="mr-2" />System Details</TabsTrigger>
-            <TabsTrigger value="raw-data"><Code className="mr-2" />Raw Data</TabsTrigger>
+            <TabsTrigger value="raw-data"><Code className="mr-2" />Data Explorer</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="mt-6 space-y-6">
@@ -380,35 +389,84 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
         </TabsContent>
         
         <TabsContent value="raw-data" className="mt-6 space-y-4">
-            {rawData?.firmwareContent && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Organized Data Explorer</CardTitle>
+                    <CardDescription>
+                        The AI has organized the raw extracted strings into inferred files and content types.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {organizedContents && organizedContents.length > 0 ? (
+                        <Accordion type="multiple" className="w-full space-y-2">
+                            {organizedContents.map((item, index) => (
+                                <AccordionItem value={`item-${index}`} key={index} className="bg-muted/30 rounded-lg px-4 border-b-0">
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-3 text-left">
+                                            <OrganizedContentIcon type={item.contentType} />
+                                            <div className="flex-1">
+                                                <div className="font-mono text-sm truncate">{item.filePath}</div>
+                                                <div className="text-xs text-muted-foreground font-normal">{item.summary}</div>
+                                            </div>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <Card className="max-h-96 overflow-y-auto bg-background p-4 font-mono text-xs">
+                                            <pre><code>{item.content}</code></pre>
+                                        </Card>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    ) : (
+                        <p className="text-muted-foreground">No organized content could be extracted.</p>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Accordion type="single" collapsible className="w-full">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Extracted Firmware Strings</CardTitle>
-                        <CardDescription>Simulated output from `strings` command on the firmware binary.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
-                            <pre><code>{rawData.firmwareContent}</code></pre>
-                        </Card>
-                    </CardContent>
+                    <AccordionItem value="raw-dump" className="border-b-0">
+                        <AccordionTrigger className="px-6 text-base font-medium">
+                            <div className="flex items-center gap-3">
+                                <Code className="h-6 w-6 text-muted-foreground" />
+                                View Raw Unprocessed Data
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-6 pb-6 space-y-4">
+                            {rawData?.firmwareContent && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Extracted Firmware Strings</CardTitle>
+                                        <CardDescription>Simulated output from `strings` command on the firmware binary.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                                            <pre><code>{rawData.firmwareContent}</code></pre>
+                                        </Card>
+                                    </CardContent>
+                                </Card>
+                            )}
+                            {rawData?.bootlogContent && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Bootlog Content</CardTitle>
+                                        <CardDescription>Full content of the provided bootlog file.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
+                                            <pre><code>{rawData.bootlogContent}</code></pre>
+                                        </Card>
+                                    </CardContent>
+                                </Card>
+                            )}
+                             {!rawData?.firmwareContent && !rawData?.bootlogContent && (
+                                <p className="text-muted-foreground">No raw data to display.</p>
+                            )}
+                        </AccordionContent>
+                    </AccordionItem>
                 </Card>
-            )}
-            {rawData?.bootlogContent && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Bootlog Content</CardTitle>
-                        <CardDescription>Full content of the provided bootlog file.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Card className="max-h-96 overflow-y-auto bg-muted/30 p-4 font-mono text-xs">
-                            <pre><code>{rawData.bootlogContent}</code></pre>
-                        </Card>
-                    </CardContent>
-                </Card>
-            )}
-            {!rawData?.firmwareContent && !rawData?.bootlogContent && (
-                <p className="text-muted-foreground">No raw data to display.</p>
-            )}
+            </Accordion>
         </TabsContent>
 
       </Tabs>

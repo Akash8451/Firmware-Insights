@@ -74,6 +74,13 @@ const PotentialVulnerabilitySchema = z.object({
     remediation: z.string().describe("A suggested remediation or mitigation strategy."),
 });
 
+const OrganizedContentSchema = z.object({
+    filePath: z.string().describe("The inferred file path, e.g., '/etc/config/system' or 'Inferred Shell Script' if no path is clear."),
+    contentType: z.string().describe("The type of content, e.g., 'Configuration', 'HTML', 'JavaScript', 'Shell Script', 'Certificate', 'Log'."),
+    summary: z.string().describe("A one-sentence summary of the content's purpose and significance."),
+    content: z.string().describe("The reconstructed block of text from the raw strings that represents this file's content."),
+});
+
 
 const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
@@ -83,6 +90,7 @@ const AnalyzeFirmwareOutputSchema = z.object({
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
     sbomAnalysis: z.array(SbomComponentAnalysisSchema).describe("An analysis of each component from the Software Bill of Materials, including any associated CVEs."),
     fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings, including potential malware.'),
+    organizedContents: z.array(OrganizedContentSchema).describe("Key file contents, scripts, and logs extracted and categorized from the raw firmware strings and bootlog."),
     remediationPlan: z.array(RemediationStepSchema).describe("A prioritized list of actionable remediation steps, ranked from most to least critical."),
     potentialVulnerabilities: z.array(PotentialVulnerabilitySchema).describe("A list of potential zero-day or novel vulnerabilities discovered through deep analysis."),
 });
@@ -160,7 +168,9 @@ const enrichmentPrompt = ai.definePrompt({
 
     6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`. Look for password hashes (strings starting with patterns like \`$1$\`, \`$5$\`, \`$6$\`), check for weak or default configurations in identified configuration files, or identify suspicious custom services or scripts that might be backdoors. For each finding, create a \`PotentialVulnerability\` entry.
 
-    7.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
+    7.  **Organize Raw Data**: Reconstruct and categorize the most important text blocks from the raw \`firmwareContent\` and \`bootlogContent\`. For each block, determine a file path (if possible), its content type (like 'HTML', 'Shell Script', 'Config'), provide a summary, and include the reconstructed text content. Populate the \`organizedContents\` field with this data.
+
+    8.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
 
     **IMPORTANT**: You MUST return the \`firmwareIdentification\`, and \`bootlogAnalysis\` fields from the input directly in your output. For the \`sbomAnalysis\` field, you must return the structure you were given, but with the AI-enhanced \`summary\` and \`remediation\` fields filled in for each CVE. If any array is empty, return \`[]\`.
 
