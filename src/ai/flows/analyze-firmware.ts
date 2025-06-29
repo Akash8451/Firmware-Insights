@@ -9,7 +9,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { getNvdCvesForComponent, CveSchema } from '@/ai/tools/nvd';
+import { CveSchema } from '../schemas';
+import { getNvdCvesForComponent } from '@/ai/tools/nvd';
 
 const AnalyzeFirmwareInputSchema = z.object({
   firmwareContent: z.string().describe('The extracted text strings from the .bin firmware file.'),
