@@ -115,7 +115,11 @@ const identifyAndSbomPrompt = ai.definePrompt({
 
     2.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
     
-    3.  **SBOM Generation**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings.
+    3.  **SBOM Generation (Signature-Based Component Identification)**: Your goal is to create a signature for each software component to be looked up in a CVE database.
+        *   **Exhaustive Search**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components.
+        *   **Prioritize Common Firmware Components**: Pay close attention to common embedded software like \`BusyBox\`, \`U-Boot\`, \`OpenSSL\`, \`dropbear\` (SSH server), \`dnsmasq\`, \`lighttpd\`, \`iptables\`, \`wpa_supplicant\`, as well as common libraries like \`libcurl\`, \`zlib\`, \`libxml2\`.
+        *   **Extract Precise Versions**: For each component found, extract the most precise version number possible (e.g., \`1.25.1\`, not just \`1.25\`). If a version is not found, do not include the component.
+        *   **Compile SBOM**: Compile a comprehensive Software Bill of Materials (SBOM) from these findings. Each entry must have a name, version, and type.
 
     Your response MUST be a valid JSON object that strictly adheres to the provided output schema. If a section is empty, return an empty array or object as appropriate.
     
