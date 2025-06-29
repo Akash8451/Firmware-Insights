@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { CveSchema } from '../schemas';
+import { CveSchema } from '@/ai/schemas';
 import { getNvdCvesForComponent } from '@/ai/tools/nvd';
 
 const AnalyzeFirmwareInputSchema = z.object({
@@ -19,7 +19,7 @@ const AnalyzeFirmwareInputSchema = z.object({
 export type AnalyzeFirmwareInput = z.infer<typeof AnalyzeFirmwareInputSchema>;
 
 const SecretSchema = z.object({
-    type: z.string().describe('Type of secret, e.g., "API Key", "Password", "Username/Password Pair", "Private Key".'),
+    type: z.string().describe('Type of secret, e.g., "API Key", "Password", "Username/Password Pair", "Private Key", "X.509 Certificate".'),
     value: z.string().describe('The detected secret string or username/password pair.'),
     recommendation: z.string().describe('Recommendation for remediation, e.g., "Rotate key and store in a secure vault."'),
 });
@@ -152,13 +152,13 @@ const enrichmentPrompt = ai.definePrompt({
 
     2.  **Enrich CVE Data**: For each component in the \`sbomAnalysis\` array, and for each CVE within that component's \`cves\` array, generate a concise 2-3 bullet point \`summary\` of the risk and a brief, actionable \`remediation\` step. The other CVE fields (including the raw \`description\`) are already populated from the NVD API.
 
-    3.  **Secrets**: Diligently scan the raw \`firmwareContent\` for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`).
+    3.  **Secrets**: Diligently scan the raw \`firmwareContent\` for any hardcoded secrets. This includes API keys, private keys (especially those enclosed in \`-----BEGIN...-----\` blocks), X.509 certificates, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`).
 
     4.  **Unsafe APIs**: Identify the use of insecure C functions (like \`strcpy\`, \`gets\`) or weak cryptographic algorithms (like MD5, RC4) from the raw \`firmwareContent\`.
 
     5.  **File System & Malware Insights**: Identify noteworthy file paths (e.g., \`/etc/shadow\`, \`/bin/sh\`). Pay special attention to keywords like \`upnp\`, \`ssh\`, \`root\`, \`shell\` and explain their security implications from the raw \`firmwareContent\`. If you suspect a file or pattern indicates malware or a backdoor (like Xiongmai XMeye), set the \`threatType\` to "Malware" or "Suspicious Pattern" and explain your reasoning in \`threatReasoning\`.
 
-    6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`. For example, look for password hashes (strings starting with \`$1$\`, \`$5$\`, \`$6$\`), check for weak default configurations in identified configuration files, or identify suspicious custom services that might be backdoors. For each finding, create a \`PotentialVulnerability\` entry.
+    6.  **Potential Novel Vulnerabilities (Zero-Day Analysis)**: Act as a reverse engineer. Go beyond known CVEs to find potential new vulnerabilities by analyzing how components, scripts, and configurations interact in the raw \`firmwareContent\`. Look for password hashes (strings starting with patterns like \`$1$\`, \`$5$\`, \`$6$\`), check for weak or default configurations in identified configuration files, or identify suspicious custom services or scripts that might be backdoors. For each finding, create a \`PotentialVulnerability\` entry.
 
     7.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
 
@@ -233,5 +233,3 @@ const analyzeFirmwareFlow = ai.defineFlow(
     return finalAnalysis;
   }
 );
-
-    
