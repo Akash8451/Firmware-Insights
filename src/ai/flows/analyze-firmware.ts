@@ -29,6 +29,8 @@ const UnsafeApiSchema = z.object({
 
 const CveSchema = z.object({
     cveId: z.string().describe('The CVE identifier, e.g., "CVE-2022-12345".'),
+    componentName: z.string().describe('The name of the affected software component from the SBOM.'),
+    componentVersion: z.string().describe('The version of the affected software component found in the firmware.'),
     description: z.string().describe('A detailed description of the vulnerability.'),
     cvssScore: z.coerce.number().describe('The CVSS v3 score, from 0.0 to 10.0.'),
     summary: z.string().describe('A 2-3 bullet point summary of the risk, formatted as a single string with newlines.'),
@@ -118,7 +120,7 @@ Based *only* on the provided \`firmwareContent\` and \`bootlogContent\`, perform
 
 3.  **Bootlog Analysis**: From the bootlog, extract the Linux kernel version, any identified hardware, and loaded kernel modules. Summarize any interesting findings.
 
-4.  **SBOM & Rigorous CVE Analysis**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings. Then, for every single component identified in the SBOM, perform a rigorous search for associated Common Vulnerabilities and Exposures (CVEs). For each CVE, include its ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible. Be exhaustive in your search.
+4.  **SBOM & Rigorous CVE Analysis**: Scour the *entire* \`firmwareContent\` and \`bootlogContent\` for any mention of software components, libraries, packages, and their version numbers. This includes standard binaries, open-source libraries, and any uncommon or proprietary files. Compile a comprehensive Software Bill of Materials (SBOM) from these findings. Then, for every single component identified in the SBOM, perform a rigorous search for associated Common Vulnerabilities and Exposures (CVEs). For each CVE found, you **must** correlate it back to the component by filling in the \`componentName\` and \`componentVersion\` fields. Also include the CVE ID, a detailed description, its CVSSv3 score, a 2-3 bullet point summary of the risk, and a brief, actionable remediation step if possible. Be exhaustive in your search.
 
 5.  **Secrets**: Diligently scan for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`). For each secret, note its type, value, and a remediation recommendation.
 

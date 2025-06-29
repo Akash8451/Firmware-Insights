@@ -306,6 +306,12 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                                 <CardDescription className="pt-2">{cve.description}</CardDescription>
                             </CardHeader>
                             <CardContent>
+                                {cve.componentName && (
+                                    <div className="mb-4">
+                                        <h4 className="font-semibold mb-1 text-sm">Affected Component:</h4>
+                                        <p className="text-sm text-muted-foreground font-mono">{cve.componentName} ({cve.componentVersion || 'version not specified'})</p>
+                                    </div>
+                                )}
                                 <h4 className="font-semibold mb-2 text-sm">Summary:</h4>
                                 <div className="pl-4 border-l-2 border-primary/50 space-y-1">
                                 {(cve.summary || '').split('\n').map((line, i) => (
