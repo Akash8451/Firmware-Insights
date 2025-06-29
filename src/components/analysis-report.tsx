@@ -18,6 +18,12 @@ const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
   return 'outline';
 };
 
+const getConfidenceBadgeVariant = (score: number): BadgeProps['variant'] => {
+  if (score >= 0.8) return 'default';
+  if (score >= 0.5) return 'secondary';
+  return 'destructive';
+};
+
 const DeviceTypeIcon = ({ type }: { type: string }) => {
     const lowerType = type.toLowerCase();
     if (lowerType.includes('router')) return <Router className="h-4 w-4 text-muted-foreground" />;
@@ -29,7 +35,7 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, firmwareType, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
+  const { overallSummary, firmwareIdentification, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
 
   const totalIssues = cves.length + secrets.length + unsafeApis.length + potentialVulnerabilities.length;
   
@@ -68,6 +74,8 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
     link.click();
   };
 
+  const deviceName = [firmwareIdentification.vendor, firmwareIdentification.model].filter(Boolean).join(' ') || "Unknown Device";
+
   return (
     <div className="w-full space-y-6 animate-in fade-in-50">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -102,14 +110,17 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Device Type</CardTitle>
-                <DeviceTypeIcon type={firmwareType.type} />
+                <CardTitle className="text-sm font-medium">Identified Device</CardTitle>
+                <DeviceTypeIcon type={firmwareIdentification.deviceType} />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">{firmwareType.type}</div>
-                <p className="text-xs text-muted-foreground">
-                    Confidence: {(firmwareType.confidence * 100).toFixed(0)}%
-                </p>
+                <div className="text-2xl font-bold">{deviceName}</div>
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>Confidence:</span>
+                    <Badge variant={getConfidenceBadgeVariant(firmwareIdentification.confidence)}>
+                      {(firmwareIdentification.confidence * 100).toFixed(0)}%
+                    </Badge>
+                </div>
             </CardContent>
         </Card>
         <Card>
@@ -140,9 +151,9 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{overallSummary}</p>
-          {firmwareType.reasoning && (
+          {firmwareIdentification.reasoning && (
              <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50">
-                <span className="font-semibold text-foreground">Classification Rationale:</span> {firmwareType.reasoning}
+                <span className="font-semibold text-foreground">Identification Rationale:</span> {firmwareIdentification.reasoning}
               </p>
             )}
         </CardContent>
