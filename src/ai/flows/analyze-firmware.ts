@@ -42,6 +42,10 @@ const SbomComponentSchema = z.object({
     type: z.string().describe('The type of component, e.g., "OS Package", "Library", "Application".'),
 });
 
+const SbomComponentAnalysisSchema = SbomComponentSchema.extend({
+    cves: z.array(CveSchema).describe("A list of CVEs associated with this component. The 'description' field contains the raw data from the NVD API, while 'summary' and 'remediation' are AI-enhanced."),
+});
+
 const FirmwareIdentificationSchema = z.object({
     vendor: z.string().optional().describe('The identified vendor, e.g., "TP-Link".'),
     model: z.string().optional().describe('The identified device model, e.g., "TL-WR845N".'),
@@ -75,10 +79,9 @@ const AnalyzeFirmwareOutputSchema = z.object({
     overallSummary: z.string().describe("A high-level summary of the firmware's security posture in a single paragraph."),
     firmwareIdentification: FirmwareIdentificationSchema,
     bootlogAnalysis: BootlogAnalysisSchema,
-    cves: z.array(CveSchema).describe('A list of Common Vulnerabilities and Exposures (CVEs) found.'),
     secrets: z.array(SecretSchema).describe('A list of hardcoded secrets found, including username/password pairs.'),
     unsafeApis: z.array(UnsafeApiSchema).describe('A list of unsafe API calls or weak crypto algorithms found.'),
-    sbom: z.array(SbomComponentSchema).describe('A list of software components identified in the firmware (Software Bill of Materials).'),
+    sbomAnalysis: z.array(SbomComponentAnalysisSchema).describe("An analysis of each component from the Software Bill of Materials, including any associated CVEs."),
     fileSystemInsights: z.array(FileSystemInsightSchema).describe('A list of noteworthy files and paths found within the firmware strings, including potential malware.'),
     remediationPlan: z.array(RemediationStepSchema).describe("A prioritized list of actionable remediation steps, ranked from most to least critical."),
     potentialVulnerabilities: z.array(PotentialVulnerabilitySchema).describe("A list of potential zero-day or novel vulnerabilities discovered through deep analysis."),
@@ -134,11 +137,10 @@ const enrichmentPrompt = ai.definePrompt({
         bootlogContent: z.string().optional(),
         firmwareIdentification: FirmwareIdentificationSchema,
         bootlogAnalysis: BootlogAnalysisSchema,
-        sbom: z.array(SbomComponentSchema),
-        cvesFromApi: z.array(CveSchema)
+        sbomAnalysis: z.array(SbomComponentAnalysisSchema),
     })},
     output: { schema: AnalyzeFirmwareOutputSchema },
-    prompt: `You are an expert firmware security analysis tool. You have been provided with an initial analysis of a firmware (device identity, SBOM, bootlog info) and a list of CVEs retrieved from the NVD database for the components in the SBOM.
+    prompt: `You are an expert firmware security analysis tool. You have been provided with an initial analysis of a firmware (device identity, bootlog info) and an SBOM analysis containing a list of components and their associated raw CVE data from the NVD API.
 
     Your main task is to **enrich this data and perform a deeper security analysis** to generate a final, comprehensive report.
 
@@ -148,7 +150,7 @@ const enrichmentPrompt = ai.definePrompt({
 
     1.  **Overall Summary**: Based on all the provided information (initial analysis, CVEs, file content), write a concise, high-level summary of the firmware's security posture.
 
-    2.  **Enrich CVE Data**: For each CVE provided in \`cvesFromApi\`, generate a concise 2-3 bullet point \`summary\` of the risk and a brief, actionable \`remediation\` step. The other fields (\`cveId\`, \`description\`, \`cvssScore\`, etc.) are already populated from the NVD API.
+    2.  **Enrich CVE Data**: For each component in the \`sbomAnalysis\` array, and for each CVE within that component's \`cves\` array, generate a concise 2-3 bullet point \`summary\` of the risk and a brief, actionable \`remediation\` step. The other CVE fields (including the raw \`description\`) are already populated from the NVD API.
 
     3.  **Secrets**: Diligently scan the raw \`firmwareContent\` for any hardcoded secrets. This includes API keys, private keys, tokens, and especially username/password pairs which might appear in various formats (e.g., \`user:pass\`, \`USER="admin" PASS="1234"\`).
 
@@ -160,17 +162,16 @@ const enrichmentPrompt = ai.definePrompt({
 
     7.  **Remediation Plan**: Create a prioritized, step-by-step remediation plan based on all your findings (enriched CVEs, secrets, unsafe APIs, potential vulns, etc.). Rank the steps from most to least critical.
 
-    **IMPORTANT**: You MUST return the \`firmwareIdentification\`, \`bootlogAnalysis\`, and \`sbom\` fields from the input directly in your output. For the \`cves\` field, use the enriched data you generated from \`cvesFromApi\`. If any array is empty, return \`[]\`.
+    **IMPORTANT**: You MUST return the \`firmwareIdentification\`, and \`bootlogAnalysis\` fields from the input directly in your output. For the \`sbomAnalysis\` field, you must return the structure you were given, but with the AI-enhanced \`summary\` and \`remediation\` fields filled in for each CVE. If any array is empty, return \`[]\`.
 
     **Input Data:**
 
     **Initial Analysis:**
     Firmware Identification: {{{json firmwareIdentification}}}
     Bootlog Analysis: {{{json bootlogAnalysis}}}
-    SBOM: {{{json sbom}}}
     
-    **CVEs from NVD API:**
-    {{{json cvesFromApi}}}
+    **SBOM with Raw CVEs from NVD API:**
+    {{{json sbomAnalysis}}}
 
     **Raw Firmware Data:**
     Bootlog contents:
@@ -205,11 +206,24 @@ const analyzeFirmwareFlow = ai.defineFlow(
     const cveResults = await Promise.all(cvePromises);
     const allCvesFromApi = cveResults.flat();
 
-    // Step 3: Call the enrichment prompt with all the data
+    // Step 3: Combine SBOM and CVEs into a single structure
+    const sbomAnalysisWithRawCves = initialAnalysis.sbom.map(component => {
+        const componentCves = allCvesFromApi.filter(
+            cve => cve.componentName === component.name && cve.componentVersion === component.version
+        );
+        return {
+            ...component,
+            cves: componentCves,
+        };
+    });
+
+    // Step 4: Call the enrichment prompt with all the data
     const { output: finalAnalysis } = await enrichmentPrompt({
-        ...input,
-        ...initialAnalysis,
-        cvesFromApi: allCvesFromApi
+        firmwareContent: input.firmwareContent,
+        bootlogContent: input.bootlogContent,
+        firmwareIdentification: initialAnalysis.firmwareIdentification,
+        bootlogAnalysis: initialAnalysis.bootlogAnalysis,
+        sbomAnalysis: sbomAnalysisWithRawCves,
     });
     
     if (!finalAnalysis) {

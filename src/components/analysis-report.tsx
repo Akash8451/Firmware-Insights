@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert } from 'lucide-react';
+import { AlertCircle, KeyRound, ShieldOff, ArrowLeft, FileText, Cpu, ShieldCheck, ListTree, Router, Camera, MemoryStick, Printer, HelpCircle, FolderTree, FileCode, Download, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import type { AnalyzeFirmwareOutput } from '@/ai/flows/analyze-firmware';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const getBadgeVariantForCvss = (score: number): BadgeProps['variant'] => {
@@ -35,13 +36,17 @@ const DeviceTypeIcon = ({ type }: { type: string }) => {
 
 
 export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwareOutput, onReset: () => void }) {
-  const { overallSummary, firmwareIdentification, bootlogAnalysis, cves, secrets, unsafeApis, sbom, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
+  const { overallSummary, firmwareIdentification, bootlogAnalysis, secrets, unsafeApis, sbomAnalysis, fileSystemInsights, remediationPlan, potentialVulnerabilities } = analysis;
 
-  const totalIssues = cves.length + secrets.length + unsafeApis.length + potentialVulnerabilities.length;
+  const allCves = React.useMemo(() => sbomAnalysis.flatMap(comp => comp.cves), [sbomAnalysis]);
+  const vulnerableComponents = React.useMemo(() => sbomAnalysis.filter(c => c.cves.length > 0), [sbomAnalysis]);
+  const cleanComponents = React.useMemo(() => sbomAnalysis.filter(c => c.cves.length === 0), [sbomAnalysis]);
+
+  const totalIssues = allCves.length + secrets.length + unsafeApis.length + potentialVulnerabilities.length;
   
   const cveSeverityData = React.useMemo(() => {
     const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-    cves.forEach((cve) => {
+    allCves.forEach((cve) => {
       if (cve.cvssScore >= 9.0) counts.Critical++;
       else if (cve.cvssScore >= 7.0) counts.High++;
       else if (cve.cvssScore >= 4.0) counts.Medium++;
@@ -53,16 +58,16 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
       { name: "Medium", value: counts.Medium, fill: "hsl(var(--chart-5))" },
       { name: "Low", value: counts.Low, fill: "hsl(var(--chart-2))" },
     ].filter((d) => d.value > 0);
-  }, [cves]);
+  }, [allCves]);
 
   const issueBreakdownData = React.useMemo(() => {
     return [
-      { name: "CVEs", value: cves.length, fill: "hsl(var(--chart-1))" },
+      { name: "CVEs", value: allCves.length, fill: "hsl(var(--chart-1))" },
       { name: "Secrets", value: secrets.length, fill: "hsl(var(--chart-2))" },
       { name: "Unsafe APIs", value: unsafeApis.length, fill: "hsl(var(--chart-3))" },
       { name: "Potential Vulns", value: potentialVulnerabilities.length, fill: "hsl(var(--chart-4))" },
     ].filter((d) => d.value > 0);
-  }, [cves.length, secrets.length, unsafeApis.length, potentialVulnerabilities.length]);
+  }, [allCves.length, secrets.length, unsafeApis.length, potentialVulnerabilities.length]);
   
   const handleExportJson = () => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -251,7 +256,7 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
         </Card>
       </div>
 
-      <Accordion type="multiple" defaultValue={['potential-vulns', 'cves', 'secrets']} className="w-full space-y-4">
+      <Accordion type="multiple" defaultValue={['potential-vulns', 'vulnerable-components']} className="w-full space-y-4">
         
         {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
             <Card>
@@ -284,54 +289,64 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                 </AccordionItem>
             </Card>
         )}
-
-        <Card>
-          <AccordionItem value="cves" className="border-b-0">
-            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
-                <div className="flex items-center gap-3">
-                    <AlertCircle className="h-6 w-6 text-primary" />
-                    <span>CVEs Found</span>
-                    <Badge variant="default">{cves.length}</Badge>
-                </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-                <div className="space-y-4">
-                    {cves.length > 0 ? cves.map((cve) => (
-                        <Card key={cve.cveId} className="bg-muted/30">
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <CardTitle className="text-base">{cve.cveId}</CardTitle>
-                                    <Badge variant={getBadgeVariantForCvss(cve.cvssScore)}>CVSS: {cve.cvssScore.toFixed(1)}</Badge>
-                                </div>
-                                <CardDescription className="pt-2">{cve.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {cve.componentName && (
-                                    <div className="mb-4">
-                                        <h4 className="font-semibold mb-1 text-sm">Affected Component:</h4>
-                                        <p className="text-sm text-muted-foreground font-mono">{cve.componentName} ({cve.componentVersion || 'version not specified'})</p>
-                                    </div>
-                                )}
-                                <h4 className="font-semibold mb-2 text-sm">Summary:</h4>
-                                <div className="pl-4 border-l-2 border-primary/50 space-y-1">
-                                {(cve.summary || '').split('\n').map((line, i) => (
-                                    line.trim() && <p key={i} className="text-sm text-muted-foreground">{line.replace(/^- /, '• ')}</p>
-                                ))}
-                                </div>
-                                {cve.remediation && (
-                                  <>
-                                    <h4 className="font-semibold mt-4 mb-2 text-sm">Remediation:</h4>
-                                    <p className="text-sm text-muted-foreground">{cve.remediation}</p>
-                                  </>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )) : <p className="text-muted-foreground">No CVEs were automatically identified.</p>}
-                </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Card>
         
+        {vulnerableComponents.length > 0 && (
+          <Card>
+            <AccordionItem value="vulnerable-components" className="border-b-0">
+              <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                  <div className="flex items-center gap-3">
+                      <AlertCircle className="h-6 w-6 text-primary" />
+                      <span>Vulnerable Components</span>
+                      <Badge variant="default">{vulnerableComponents.length}</Badge>
+                  </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6 space-y-4">
+                  {vulnerableComponents.map((component) => (
+                    <Card key={`${component.name}-${component.version}`} className="bg-muted/30">
+                      <CardHeader>
+                        <CardTitle className="text-base">{component.name} <span className="font-normal text-muted-foreground">{component.version}</span></CardTitle>
+                        <CardDescription>Found {component.cves.length} CVE(s) for this component.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {component.cves.map(cve => (
+                          <div key={cve.cveId} className="p-4 border rounded-lg bg-background">
+                            <div className="flex justify-between items-start mb-2">
+                                <h4 className="font-bold text-foreground">{cve.cveId}</h4>
+                                <Badge variant={getBadgeVariantForCvss(cve.cvssScore)}>CVSS: {cve.cvssScore.toFixed(1)}</Badge>
+                            </div>
+                            <Tabs defaultValue="enhanced" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="enhanced">AI-Enhanced Analysis</TabsTrigger>
+                                    <TabsTrigger value="raw">Raw API Data</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="enhanced" className="mt-4 text-sm">
+                                    <h5 className="font-semibold mb-2">Summary:</h5>
+                                    <div className="pl-4 border-l-2 border-primary/50 space-y-1 text-muted-foreground">
+                                    {(cve.summary || '').split('\n').map((line, i) => (
+                                        line.trim() && <p key={i}>{line.replace(/^- /, '• ')}</p>
+                                    ))}
+                                    </div>
+                                    {cve.remediation && (
+                                    <>
+                                        <h5 className="font-semibold mt-4 mb-2">Remediation:</h5>
+                                        <p className="text-muted-foreground">{cve.remediation}</p>
+                                    </>
+                                    )}
+                                </TabsContent>
+                                <TabsContent value="raw" className="mt-4 text-sm text-muted-foreground">
+                                    <p>{cve.description}</p>
+                                </TabsContent>
+                            </Tabs>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </AccordionContent>
+            </AccordionItem>
+          </Card>
+        )}
+
         <Card>
           <AccordionItem value="secrets" className="border-b-0">
             <AccordionTrigger className="px-6 py-4 text-lg font-medium">
@@ -391,11 +406,11 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                 <div className="flex items-center gap-3">
                     <ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" />
                     <span>Software Bill of Materials (SBOM)</span>
-                    <Badge variant="secondary">{sbom.length}</Badge>
+                    <Badge variant="secondary">{sbomAnalysis.length}</Badge>
                 </div>
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-6">
-                {sbom && sbom.length > 0 ? (
+                {sbomAnalysis && sbomAnalysis.length > 0 ? (
                     <Card>
                         <Table>
                         <TableHeader>
@@ -403,14 +418,21 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
                             <TableHead>Name</TableHead>
                             <TableHead>Version</TableHead>
                             <TableHead>Type</TableHead>
+                             <TableHead className="text-center">CVEs</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {sbom.map((component, i) => (
+                            {sbomAnalysis.map((component, i) => (
                             <TableRow key={i}>
                                 <TableCell className="font-medium">{component.name}</TableCell>
                                 <TableCell>{component.version}</TableCell>
                                 <TableCell>{component.type}</TableCell>
+                                <TableCell className="text-center">
+                                    {component.cves.length > 0 
+                                      ? <Badge variant="destructive">{component.cves.length}</Badge> 
+                                      : <Badge variant="outline">0</Badge>
+                                    }
+                                </TableCell>
                             </TableRow>
                             ))}
                         </TableBody>
@@ -420,6 +442,43 @@ export function AnalysisReport({ analysis, onReset }: { analysis: AnalyzeFirmwar
             </AccordionContent>
           </AccordionItem>
         </Card>
+        
+        {cleanComponents.length > 0 && (
+          <Card>
+            <AccordionItem value="clean-components" className="border-b-0">
+              <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                  <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      <span>Scanned & Clean Components</span>
+                      <Badge variant="secondary">{cleanComponents.length}</Badge>
+                  </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                 <p className="text-muted-foreground mb-4">These components were scanned against the NVD database and no associated CVEs were found for the detected versions.</p>
+                 <Card>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Version</TableHead>
+                                <TableHead>Type</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {cleanComponents.map((component, i) => (
+                            <TableRow key={i}>
+                                <TableCell className="font-medium">{component.name}</TableCell>
+                                <TableCell>{component.version}</TableCell>
+                                <TableCell>{component.type}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                 </Card>
+              </AccordionContent>
+            </AccordionItem>
+          </Card>
+        )}
 
         <Card>
           <AccordionItem value="file-explorer" className="border-b-0">
