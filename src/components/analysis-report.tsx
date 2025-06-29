@@ -78,6 +78,13 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
       { name: "Potential Vulns", value: potentialVulnerabilities.length, fill: "hsl(var(--chart-4))" },
     ].filter((d) => d.value > 0);
   }, [allCves.length, secrets.length, unsafeApis.length, potentialVulnerabilities.length]);
+
+  const securityPosture = React.useMemo(() => {
+    if (totalIssues > 0) {
+      return { text: "Action Required", icon: <ShieldAlert className="h-4 w-4 text-destructive" />, color: "text-destructive" };
+    }
+    return { text: "Looks Good", icon: <ShieldCheck className="h-4 w-4 text-green-600" />, color: "text-green-600" };
+  }, [totalIssues]);
   
   const handleExportJson = () => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -151,10 +158,10 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Security Posture</CardTitle>
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                {securityPosture.icon}
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">Review Needed</div>
+                <div className={`text-2xl font-bold ${securityPosture.color}`}>{securityPosture.text}</div>
                  <p className="text-xs text-muted-foreground">Based on automated analysis</p>
             </CardContent>
         </Card>
@@ -254,7 +261,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
             <Accordion type="multiple" defaultValue={['potential-vulns', 'vulnerable-components']} className="w-full space-y-4">
                 {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
                     <Card>
-                        <AccordionItem value="potential-vulns" className="border-b-0 border-destructive/50">
+                        <AccordionItem value="potential-vulns" className="border-b-0">
                             <AccordionTrigger className="px-6 text-base font-semibold">
                                 <div className="flex items-center gap-3">
                                     <ShieldAlert className="h-6 w-6 text-destructive" />
@@ -343,18 +350,18 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
 
         <TabsContent value="system-details" className="mt-6">
             <Accordion type="multiple" defaultValue={['sbom']} className="w-full space-y-4">
-                <Card>
-                  <AccordionItem value="sbom" className="border-b-0">
-                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" /><span>Software Bill of Materials (SBOM)</span><Badge variant="secondary">{sbomAnalysis.length}</Badge></div></AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                        {sbomAnalysis && sbomAnalysis.length > 0 ? (
-                            <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead><TableHead className="text-center">CVEs</TableHead></TableRow></TableHeader>
-                                <TableBody>{sbomAnalysis.map((component, i) => ( <TableRow key={i}><TableCell className="font-medium">{component.name}</TableCell><TableCell>{component.version}</TableCell><TableCell>{component.type}</TableCell><TableCell className="text-center">{component.cves.length > 0 ? <Badge variant="destructive">{component.cves.length}</Badge> : <Badge variant="outline">0</Badge>}</TableCell></TableRow>))}
-                                </TableBody></Table></Card>
-                        ) : <p className="text-muted-foreground">No software components were identified to generate an SBOM.</p>}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Card>
+                {sbomAnalysis && sbomAnalysis.length > 0 && (
+                    <Card>
+                    <AccordionItem value="sbom" className="border-b-0">
+                        <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" /><span>Software Bill of Materials (SBOM)</span><Badge variant="secondary">{sbomAnalysis.length}</Badge></div></AccordionTrigger>
+                        <AccordionContent className="px-6 pb-6">
+                                <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead><TableHead className="text-center">CVEs</TableHead></TableRow></TableHeader>
+                                    <TableBody>{sbomAnalysis.map((component, i) => ( <TableRow key={i}><TableCell className="font-medium">{component.name}</TableCell><TableCell>{component.version}</TableCell><TableCell>{component.type}</TableCell><TableCell className="text-center">{component.cves.length > 0 ? <Badge variant="destructive">{component.cves.length}</Badge> : <Badge variant="outline">0</Badge>}</TableCell></TableRow>))}
+                                    </TableBody></Table></Card>
+                        </AccordionContent>
+                    </AccordionItem>
+                    </Card>
+                )}
                 {cleanComponents && cleanComponents.length > 0 && (
                   <Card>
                     <AccordionItem value="clean-components" className="border-b-0">
