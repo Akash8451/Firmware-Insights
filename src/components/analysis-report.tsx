@@ -162,10 +162,10 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-            <TabsTrigger value="overview"><BarChart className="mr-2" />Overview</TabsTrigger>
-            <TabsTrigger value="vulnerabilities"><ShieldAlert className="mr-2" />Vulnerabilities</TabsTrigger>
-            <TabsTrigger value="system-details"><Info className="mr-2" />System Details</TabsTrigger>
-            <TabsTrigger value="raw-data"><Code className="mr-2" />Data Explorer</TabsTrigger>
+            <TabsTrigger value="overview"><BarChart className="mr-2 h-4 w-4" />Overview</TabsTrigger>
+            <TabsTrigger value="vulnerabilities"><ShieldAlert className="mr-2 h-4 w-4" />Vulnerabilities</TabsTrigger>
+            <TabsTrigger value="system-details"><Info className="mr-2 h-4 w-4" />System Details</TabsTrigger>
+            <TabsTrigger value="raw-data"><Code className="mr-2 h-4 w-4" />Data Explorer</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="mt-6 space-y-6">
@@ -255,7 +255,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
                 {potentialVulnerabilities && potentialVulnerabilities.length > 0 && (
                     <Card>
                         <AccordionItem value="potential-vulns" className="border-b-0 border-destructive/50">
-                            <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                            <AccordionTrigger className="px-6 text-base font-semibold">
                                 <div className="flex items-center gap-3">
                                     <ShieldAlert className="h-6 w-6 text-destructive" />
                                     <span>Potential Novel Vulnerabilities</span>
@@ -279,7 +279,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
                 {vulnerableComponents.length > 0 && (
                   <Card>
                     <AccordionItem value="vulnerable-components" className="border-b-0">
-                      <AccordionTrigger className="px-6 py-4 text-lg font-medium">
+                      <AccordionTrigger className="px-6 text-base font-semibold">
                           <div className="flex items-center gap-3"><AlertCircle className="h-6 w-6 text-primary" /><span>Vulnerable Components</span><Badge variant="default">{vulnerableComponents.length}</Badge></div>
                       </AccordionTrigger>
                       <AccordionContent className="px-6 pb-6 space-y-4">
@@ -308,32 +308,36 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
                     </AccordionItem>
                   </Card>
                 )}
+                {secrets && secrets.length > 0 && (
                 <Card>
                   <AccordionItem value="secrets" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><KeyRound className="h-6 w-6 text-accent" /><span>Hardcoded Secrets</span><Badge variant="secondary" className="bg-accent text-accent-foreground">{secrets.length}</Badge></div></AccordionTrigger>
+                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><KeyRound className="h-6 w-6 text-accent" /><span>Hardcoded Secrets</span><Badge variant="secondary" className="bg-accent text-accent-foreground">{secrets.length}</Badge></div></AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 space-y-4">
-                        {secrets.length > 0 ? secrets.map((secret, i) => (
+                        {secrets.map((secret, i) => (
                             <Card key={i} className="bg-muted/30">
                                 <CardHeader><CardTitle className="text-base">{secret.type}</CardTitle></CardHeader>
                                 <CardContent className="space-y-2"><p className="text-sm text-muted-foreground font-mono break-all bg-background p-2 rounded-md">{secret.value}</p><p className="text-sm"><span className="font-semibold">Recommendation:</span> {secret.recommendation}</p></CardContent>
                             </Card>
-                        )) : <p className="text-muted-foreground">No hardcoded secrets were detected.</p>}
+                        ))}
                     </AccordionContent>
                   </AccordionItem>
                 </Card>
+                )}
+                {unsafeApis && unsafeApis.length > 0 && (
                 <Card>
                   <AccordionItem value="unsafe-apis" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><ShieldOff className="h-6 w-6 text-primary" /><span>Unsafe API Usage</span><Badge>{unsafeApis.length}</Badge></div></AccordionTrigger>
+                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><ShieldOff className="h-6 w-6 text-primary" /><span>Unsafe API Usage</span><Badge>{unsafeApis.length}</Badge></div></AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 space-y-4">
-                        {unsafeApis.length > 0 ? unsafeApis.map((api, i) => (
+                        {unsafeApis.map((api, i) => (
                             <Card key={i} className="bg-muted/30">
                                 <CardHeader><CardTitle className="text-base font-mono">{api.functionName}</CardTitle></CardHeader>
                                 <CardContent><p className="text-sm text-muted-foreground">{api.reason}</p></CardContent>
                             </Card>
-                        )) : <p className="text-muted-foreground">No strings indicating unsafe API usage were found.</p>}
+                        ))}
                     </AccordionContent>
                   </AccordionItem>
                 </Card>
+                )}
             </Accordion>
         </TabsContent>
 
@@ -341,7 +345,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
             <Accordion type="multiple" defaultValue={['sbom']} className="w-full space-y-4">
                 <Card>
                   <AccordionItem value="sbom" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" /><span>Software Bill of Materials (SBOM)</span><Badge variant="secondary">{sbomAnalysis.length}</Badge></div></AccordionTrigger>
+                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><ListTree className="h-6 w-6 text-[hsl(var(--chart-2))]" /><span>Software Bill of Materials (SBOM)</span><Badge variant="secondary">{sbomAnalysis.length}</Badge></div></AccordionTrigger>
                     <AccordionContent className="px-6 pb-6">
                         {sbomAnalysis && sbomAnalysis.length > 0 ? (
                             <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead><TableHead className="text-center">CVEs</TableHead></TableRow></TableHeader>
@@ -351,10 +355,10 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
                     </AccordionContent>
                   </AccordionItem>
                 </Card>
-                {cleanComponents.length > 0 && (
+                {cleanComponents && cleanComponents.length > 0 && (
                   <Card>
                     <AccordionItem value="clean-components" className="border-b-0">
-                      <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><CheckCircle2 className="h-6 w-6 text-green-600" /><span>Scanned & Clean Components</span><Badge variant="secondary">{cleanComponents.length}</Badge></div></AccordionTrigger>
+                      <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><CheckCircle2 className="h-6 w-6 text-green-600" /><span>Scanned & Clean Components</span><Badge variant="secondary">{cleanComponents.length}</Badge></div></AccordionTrigger>
                       <AccordionContent className="px-6 pb-6">
                          <p className="text-muted-foreground mb-4">These components were scanned against the NVD database and no associated CVEs were found for the detected versions.</p>
                          <Card><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Type</TableHead></TableRow></TableHeader><TableBody>{cleanComponents.map((component, i) => ( <TableRow key={i}><TableCell className="font-medium">{component.name}</TableCell><TableCell>{component.version}</TableCell><TableCell>{component.type}</TableCell></TableRow>))}</TableBody></Table></Card>
@@ -362,22 +366,24 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
                     </AccordionItem>
                   </Card>
                 )}
+                {fileSystemInsights && fileSystemInsights.length > 0 && (
                 <Card>
                   <AccordionItem value="file-explorer" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" /><span>File System & Malware Insights</span><Badge variant="secondary">{fileSystemInsights.length}</Badge></div></AccordionTrigger>
+                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><FolderTree className="h-6 w-6 text-[hsl(var(--chart-3))]" /><span>File System & Malware Insights</span><Badge variant="secondary">{fileSystemInsights.length}</Badge></div></AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 space-y-4">
-                        {fileSystemInsights && fileSystemInsights.length > 0 ? fileSystemInsights.map((file, i) => (
+                        {fileSystemInsights.map((file, i) => (
                             <Card key={i} className="bg-muted/30">
                                 <CardHeader><CardTitle className="flex items-center justify-between gap-2 text-base font-mono"><div className="flex items-center gap-2"><FileCode className="h-4 w-4 shrink-0" /><span className="truncate">{file.path}</span></div>{file.threatType && <Badge variant="destructive">{file.threatType}</Badge>}</CardTitle></CardHeader>
                                 <CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{file.description}</p>{file.threatReasoning && (<div className="mt-2 pt-2 border-t border-border/50"><p className="text-sm text-destructive"><span className="font-semibold">Threat Rationale:</span> {file.threatReasoning}</p></div> )}</CardContent>
                             </Card>
-                        )) : <p className="text-muted-foreground">No specific file paths of interest were identified from the provided strings.</p>}
+                        ))}
                     </AccordionContent>
                   </AccordionItem>
                 </Card>
+                )}
                 <Card>
                   <AccordionItem value="bootlog" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-4 text-lg font-medium"><div className="flex items-center gap-3"><FileText className="h-6 w-6 text-muted-foreground" /><span>Bootlog Analysis</span></div></AccordionTrigger>
+                    <AccordionTrigger className="px-6 text-base font-semibold"><div className="flex items-center gap-3"><FileText className="h-6 w-6 text-muted-foreground" /><span>Bootlog Analysis</span></div></AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 space-y-4">
                         <div><h4 className="font-semibold mb-1">Detected Hardware</h4>{bootlogAnalysis.hardware.length > 0 ? ( <div className="flex flex-wrap gap-2">{bootlogAnalysis.hardware.map((hw, i) => <Badge key={i} variant="outline">{hw}</Badge>)}</div> ) : <p className="text-sm text-muted-foreground">No specific hardware detected.</p>}</div>
                          <div><h4 className="font-semibold mb-1">Detected Modules/Drivers</h4>{bootlogAnalysis.modules && bootlogAnalysis.modules.length > 0 ? ( <div className="flex flex-wrap gap-2">{bootlogAnalysis.modules.map((mod, i) => <Badge key={i} variant="secondary">{mod}</Badge>)}</div> ) : <p className="text-sm text-muted-foreground">No modules or drivers detected.</p>}</div>
@@ -427,7 +433,7 @@ export function AnalysisReport({ analysis, rawData, onReset }: { analysis: Analy
             <Accordion type="single" collapsible className="w-full">
                 <Card>
                     <AccordionItem value="raw-dump" className="border-b-0">
-                        <AccordionTrigger className="px-6 text-base font-medium">
+                        <AccordionTrigger className="px-6 text-base font-semibold">
                             <div className="flex items-center gap-3">
                                 <Code className="h-6 w-6 text-muted-foreground" />
                                 View Raw Unprocessed Data
